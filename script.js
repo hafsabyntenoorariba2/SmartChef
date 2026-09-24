@@ -4,42 +4,100 @@ const worldCuisines = {
     cuisines: [
       { id: 'bangladeshi', name: 'Bangladesh', emoji: '🇧🇩', dishes: [
         { name: 'Biryani', ingredients: [
-          { name: 'Basmati Rice', qty: 2, unit: 'kg', icon: '🍚' }, { name: 'Chicken', qty: 1.5, unit: 'kg', icon: '🍗' },
-          { name: 'Onion', qty: 1, unit: 'kg', icon: '🧅' }, { name: 'Yogurt', qty: 0.5, unit: 'kg', icon: '🥛' },
-          { name: 'Ginger-Garlic Paste', qty: 0.2, unit: 'kg', icon: '🫚' }, { name: 'Saffron', qty: 0.01, unit: 'kg', icon: '🌸' },
-          { name: 'Ghee', qty: 0.3, unit: 'kg', icon: '🧈' }, { name: 'Biryani Masala', qty: 0.1, unit: 'kg', icon: '🌶️' },
-          { name: 'Potato', qty: 0.5, unit: 'kg', icon: '🥔' }, { name: 'Boiled Eggs', qty: 6, unit: 'pcs', icon: '🥚' },
-          { name: 'Mint Leaves', qty: 0.1, unit: 'kg', icon: '🌿' }
-        ]},
+          { name: 'Meat (Beef, Chicken, Goat or Mutton)', qty: 1, unit: 'kg', icon: '🍖' },
+          { name: 'Kalijeera / Chinigura / Basmati Rice', qty: 800, unit: 'g', icon: '🍚' },
+          { name: 'Bay Leaves', qty: 3, unit: 'pcs', icon: '🍃' },
+          { name: 'Cinnamon', qty: 4, unit: 'pcs', icon: '🪵' },
+          { name: 'Green Cardamom', qty: 6, unit: 'pcs', icon: '🌱' },
+          { name: 'Black Cardamom', qty: 2, unit: 'pcs', icon: '🌰' },
+          { name: 'Green Chillies', qty: 14, unit: 'pcs', icon: '🌶️' },
+          { name: 'Raisins', qty: 40, unit: 'g', icon: '🍇' },
+          { name: 'Onion (sliced)', qty: 250, unit: 'g', icon: '🧅' },
+          { name: 'Potato', qty: 300, unit: 'g', icon: '🥔' },
+          { name: 'Ginger-Garlic Paste', qty: 30, unit: 'g', icon: '🫚' },
+          { name: 'Garam Masala (Gorom Moshla)', qty: 3, unit: 'g', icon: '🌶️' },
+          { name: 'Milk Powder', qty: 15, unit: 'g', icon: '🥛' },
+          { name: 'Ghee / Mustard Oil', qty: 220, unit: 'g', icon: '🧈' },
+          { name: 'Ketchup', qty: 35, unit: 'g', icon: '🍅' },
+          { name: 'Yogurt', qty: 60, unit: 'g', icon: '🥣' },
+          { name: 'Almonds', qty: 10, unit: 'g', icon: '🌰' },
+          { name: 'White Pepper', qty: 1, unit: 'g', icon: '⚪' },
+          { name: 'Black Pepper', qty: 1, unit: 'g', icon: '⚫' },
+          { name: 'Pistachios', qty: 3, unit: 'g', icon: '🥜' },
+          { name: 'Nutmeg', qty: 3, unit: 'g', icon: '🌰' },
+          { name: 'Mace', qty: 2, unit: 'pcs', icon: '🌼' },
+          { name: 'Poppy Seeds (optional)', qty: 2, unit: 'g', icon: '⚪' }
+]},
         { name: 'Hilsa Curry', ingredients: [
-          { name: 'Hilsa Fish', qty: 1.5, unit: 'kg', icon: '🐟' }, { name: 'Mustard Paste', qty: 0.3, unit: 'kg', icon: '🌾' },
-          { name: 'Green Chili', qty: 0.1, unit: 'kg', icon: '🌶️' }, { name: 'Turmeric', qty: 0.05, unit: 'kg', icon: '🟡' },
-          { name: 'Mustard Oil', qty: 0.2, unit: 'L', icon: '🫗' }
+          { name: 'Hilsa Fish (cleaned, scaled)', qty: 4, unit: 'pcs', icon: '🐟' },
+          { name: 'Mustard Oil', qty: 40, unit: 'g', icon: '🫗' },
+          { name: 'Onion', qty: 150, unit: 'g', icon: '🧅' },
+          { name: 'Garlic', qty: 12, unit: 'g', icon: '🧄' },
+          { name: 'Ginger', qty: 15, unit: 'g', icon: '🫚' },
+          { name: 'Tomato', qty: 200, unit: 'g', icon: '🍅' },
+          { name: 'Green Chillies', qty: 3, unit: 'pcs', icon: '🌶️' },
+          { name: 'Turmeric Powder', qty: 3, unit: 'g', icon: '🟡' },
+          { name: 'Red Chilli Powder', qty: 3, unit: 'g', icon: '🌶️' },
+          { name: 'Coriander Powder', qty: 3, unit: 'g', icon: '🌿' },
+          { name: 'Cumin Powder', qty: 3, unit: 'g', icon: '🟤' },
+          { name: 'Salt', qty: 10, unit: 'g', icon: '🧂' },
+          { name: 'Fresh Coriander', qty: 30, unit: 'g', icon: '🌱' }
         ]},
         { name: 'Bhuna Khichuri', ingredients: [
-          { name: 'Gobindobhog Rice', qty: 0.5, unit: 'kg', icon: '🍚' }, { name: 'Moong Dal', qty: 0.3, unit: 'kg', icon: '🫘' },
-          { name: 'Potato', qty: 0.5, unit: 'kg', icon: '🥔' }, { name: 'Cauliflower', qty: 0.5, unit: 'kg', icon: '🥦' },
-          { name: 'Ghee', qty: 0.1, unit: 'kg', icon: '🧈' }, { name: 'Bay Leaf', qty: 0.02, unit: 'kg', icon: '🍃' }
+          { name: 'Kalijeera / Fragrant Short Grain Rice', qty: 600, unit: 'g', icon: '🍚' }, { name: 'Moong Dal (Split Yellow Lentils)', qty: 100, unit: 'g', icon: '🫘' },
+          { name: 'Masoor Dal (Red Lentils)', qty: 200, unit: 'g', icon: '🫘' }, { name: 'Mustard Oil', qty: 40, unit: 'g', icon: '🫗' },
+          { name: 'Cooking Oil', qty: 25, unit: 'g', icon: '🫗' }, { name: 'Onion (thinly sliced)', qty: 60, unit: 'g', icon: '🧅' },
+          { name: 'Fried Onions', qty: 15, unit: 'g', icon: '🧅' }, { name: 'Garlic Paste', qty: 8, unit: 'g', icon: '🧄' },
+          { name: 'Ginger Paste', qty: 15, unit: 'g', icon: '🫚' }, { name: 'Green Chillies', qty: 10, unit: 'pcs', icon: '🌶️' },
+          { name: 'Ghee', qty: 15, unit: 'g', icon: '🧈' }, { name: 'Mixed Pickle', qty: 15, unit: 'g', icon: '🥒' },
+          { name: 'Shah Jeera (Caraway Seeds)', qty: 1, unit: 'g', icon: '🌾' }, { name: 'Green Cardamom', qty: 4, unit: 'pcs', icon: '🌱' },
+          { name: 'Black Cardamom', qty: 1, unit: 'pcs', icon: '🌰' }, { name: 'Cloves', qty: 5, unit: 'pcs', icon: '🌸' },
+          { name: 'Cinnamon Sticks', qty: 2, unit: 'pcs', icon: '🪵' }, { name: 'Bay Leaves', qty: 2, unit: 'pcs', icon: '🍃' },
+          { name: 'Black Peppercorns', qty: 6, unit: 'pcs', icon: '⚫' }, { name: 'Nutmeg', qty: 2, unit: 'g', icon: '🌰' },
+          { name: 'Mace', qty: 1, unit: 'pcs', icon: '🌼' }, { name: 'Coriander Powder', qty: 2, unit: 'g', icon: '🌿' },
+          { name: 'Red Chilli Powder', qty: 2, unit: 'g', icon: '🌶️' }, { name: 'Turmeric Powder', qty: 3, unit: 'g', icon: '🟡' },
+          { name: 'Roasted Cumin Powder', qty: 3, unit: 'g', icon: '🟤' }, { name: 'Garam Masala', qty: 3, unit: 'g', icon: '🌶️' },
+          { name: 'Kewra Water', qty: 1, unit: 'pcs', icon: '🌸' }, { name: 'Salt', qty: 10, unit: 'g', icon: '🧂' },
+          { name: 'Fresh Coriander', qty: 20, unit: 'g', icon: '🌱' }
         ]},
         { name: 'Shorshe Ilish', ingredients: [
-          { name: 'Hilsa Fish', qty: 1.5, unit: 'kg', icon: '🐟' }, { name: 'Mustard Paste', qty: 0.3, unit: 'kg', icon: '🌾' },
-          { name: 'Green Chili', qty: 0.1, unit: 'kg', icon: '🌶️' }
+          { name: 'Hilsa Fish (Ilish, cleaned, scaled)', qty: 8, unit: 'pcs', icon: '🐟' }, { name: 'Mustard Oil', qty: 55, unit: 'g', icon: '🫗' },
+          { name: 'Black Mustard Seeds', qty: 20, unit: 'g', icon: '⚫' }, { name: 'Yellow Mustard Seeds', qty: 20, unit: 'g', icon: '🌾' },
+          { name: 'Coconut Milk', qty: 200, unit: 'g', icon: '🥥' }, { name: 'Black Cumin (Nigella) Seeds', qty: 2, unit: 'g', icon: '🌱' },
+          { name: 'Green Chillies (slit + whole)', qty: 10, unit: 'pcs', icon: '🌶️' }, { name: 'Turmeric Powder', qty: 6, unit: 'g', icon: '🟡' },
+          { name: 'Red Chilli Powder', qty: 3, unit: 'g', icon: '🌶️' }, { name: 'Sugar', qty: 2, unit: 'g', icon: '🍬' },
+          { name: 'Salt', qty: 10, unit: 'g', icon: '🧂' }
         ]},
         { name: 'Chingri Malai Curry', ingredients: [
-          { name: 'Tiger Prawns', qty: 1, unit: 'kg', icon: '🦐' }, { name: 'Coconut Milk', qty: 0.5, unit: 'L', icon: '🥥' },
-          { name: 'Onion Paste', qty: 0.3, unit: 'kg', icon: '🧅' }
+          { name: 'Prawns (Chingri, medium)', qty: 500, unit: 'g', icon: '🦐' }, { name: 'Onion', qty: 300, unit: 'g', icon: '🧅' },
+          { name: 'Coconut Milk (thick)', qty: 240, unit: 'g', icon: '🥥' }, { name: 'Mustard Oil', qty: 30, unit: 'g', icon: '🫗' },
+          { name: 'Garlic Paste', qty: 5, unit: 'g', icon: '🧄' }, { name: 'Ginger Paste', qty: 5, unit: 'g', icon: '🫚' },
+          { name: 'Green Chillies', qty: 2, unit: 'pcs', icon: '🌶️' }, { name: 'Dry Red Chillies', qty: 2, unit: 'pcs', icon: '🌶️' },
+          { name: 'Turmeric Powder', qty: 1.5, unit: 'g', icon: '🟡' }, { name: 'Cumin Powder', qty: 3, unit: 'g', icon: '🟤' },
+          { name: 'Coriander Powder', qty: 1.5, unit: 'g', icon: '🌿' }, { name: 'Kashmiri Chilli Powder', qty: 3, unit: 'g', icon: '🌶️' },
+          { name: 'Sugar', qty: 4, unit: 'g', icon: '🍬' }, { name: 'Salt', qty: 10, unit: 'g', icon: '🧂' },
+          { name: 'Green Cardamom', qty: 6, unit: 'pcs', icon: '🌱' }, { name: 'Cloves', qty: 4, unit: 'pcs', icon: '🌸' },
+          { name: 'Cinnamon Sticks', qty: 4, unit: 'pcs', icon: '🪵' }, { name: 'Black Peppercorns', qty: 1.5, unit: 'g', icon: '⚫' },
+          { name: 'Bay Leaves', qty: 2, unit: 'pcs', icon: '🍃' }, { name: 'Cumin Seeds', qty: 1.5, unit: 'g', icon: '🌾' },
+          { name: 'Garam Masala', qty: 1, unit: 'g', icon: '🌶️' }
+
         ]},
         { name: 'Luchi', ingredients: [
-          { name: 'Maida (Refined Flour)', qty: 0.5, unit: 'kg', icon: '🌾' }, { name: 'Oil for Frying', qty: 1, unit: 'L', icon: '🫗' }
+          { name: 'All Purpose Flour (Maida)', qty: 200, unit: 'g', icon: '🌾' }, { name: 'Salt', qty: 4, unit: 'g', icon: '🧂' },
+          { name: 'Sugar', qty: 10, unit: 'g', icon: '🍬' }, { name: 'Oil', qty: 500, unit: 'g', icon: '🫗' }
         ]}
       ]},
       { id: 'indian', name: 'India', emoji: '🇮🇳', dishes: [
         { name: 'Butter Chicken', ingredients: [
-          { name: 'Chicken Thighs', qty: 1.5, unit: 'kg', icon: '🍗' }, { name: 'Tomato Puree', qty: 1, unit: 'kg', icon: '🍅' },
-          { name: 'Butter', qty: 0.25, unit: 'kg', icon: '🧈' }, { name: 'Heavy Cream', qty: 0.3, unit: 'L', icon: '🥛' },
-          { name: 'Yogurt', qty: 0.3, unit: 'kg', icon: '🥛' }, { name: 'Ginger-Garlic Paste', qty: 0.1, unit: 'kg', icon: '🫚' },
-          { name: 'Kashmiri Red Chili', qty: 0.05, unit: 'kg', icon: '🌶️' }, { name: 'Garam Masala', qty: 0.03, unit: 'kg', icon: '🌶️' },
-          { name: 'Kasuri Methi', qty: 0.02, unit: 'kg', icon: '🌿' }
+          { name: 'Chicken Thighs (skinless)', qty: 1, unit: 'kg', icon: '🍗' }, { name: 'Yogurt', qty: 120, unit: 'g', icon: '🥛' },
+          { name: 'Lemon / Lime', qty: 2, unit: 'pcs', icon: '🍋' }, { name: 'Garlic Paste', qty: 30, unit: 'g', icon: '🧄' },
+          { name: 'Ginger Paste', qty: 30, unit: 'g', icon: '🫚' }, { name: 'Garam Masala', qty: 12, unit: 'g', icon: '🌶️' },
+          { name: 'Kashmiri Chilli Powder', qty: 12, unit: 'g', icon: '🌶️' }, { name: 'Kasoori Methi (optional)', qty: 1, unit: 'g', icon: '🌿' },
+          { name: 'Turmeric Powder', qty: 1.5, unit: 'g', icon: '🟡' }, { name: 'Salt', qty: 10, unit: 'g', icon: '🧂' },
+          { name: 'Butter', qty: 70, unit: 'g', icon: '🧈' }, { name: 'Vegetable Oil', qty: 15, unit: 'g', icon: '🫗' },
+          { name: 'Roasted Cumin Powder', qty: 6, unit: 'g', icon: '🟤' }, { name: 'Green Chillies', qty: 1, unit: 'pcs', icon: '🌶️' },
+          { name: 'Tomato Paste', qty: 180, unit: 'g', icon: '🍅' }, { name: 'Heavy Cream', qty: 240, unit: 'g', icon: '🥛' },
+          { name: 'Fresh Coriander', qty: 20, unit: 'g', icon: '🌱' }
         ]},
         { name: 'Tikka Masala', ingredients: [
           { name: 'Chicken Breast', qty: 1.5, unit: 'kg', icon: '🍗' }, { name: 'Yogurt', qty: 0.4, unit: 'kg', icon: '🥛' },
