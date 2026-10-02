@@ -1853,57 +1853,61 @@ async function getAddressName(lat, lng) {
   }
 }
 
-async function fetchRealStores(lat, lng, radius = 3000) {
+async function fetchRealStores(lat, lng, radius = 2500) {
   const query = `
-    [out:json][timeout:25];
+    [out:json][timeout:15];
     (
       node["shop"="supermarket"](around:${radius},${lat},${lng});
       way["shop"="supermarket"](around:${radius},${lat},${lng});
-      relation["shop"="supermarket"](around:${radius},${lat},${lng});
-      node["shop"="convenience"](around:${radius},${lat},${lng});
-      way["shop"="convenience"](around:${radius},${lat},${lng});
       node["shop"="grocery"](around:${radius},${lat},${lng});
       way["shop"="grocery"](around:${radius},${lat},${lng});
-      node["shop"="department_store"](around:${radius},${lat},${lng});
-      way["shop"="department_store"](around:${radius},${lat},${lng});
     );
-    out center 30;
+    out center 15;
   `;
 
-  const res = await fetch('https://overpass-api.de/api/interpreter', {
-    method: 'POST',
-    body: query,
-    headers: { 'Content-Type': 'text/plain' }
-  });
+  // Try multiple Overpass servers sequentially
+  const servers = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter"
+  ];
 
-  if (!res.ok) throw new Error('Overpass API returned status ' + res.status);
+  let lastError = null;
 
-  const data = await res.json();
+  for (const server of servers) {
+    try {
+      const res = await fetch(server, {
+        method: "POST",
+        body: query,
+        headers: { "Content-Type": "text/plain" }
+      });
 
-  const stores = data.elements.map(el => {
-    const storeLat = el.lat || el.center?.lat;
-    const storeLng = el.lon || el.center?.lon;
-    if (!storeLat || !storeLng) return null;
+      if (!res.ok) throw new Error(`Server returned ${res.status}`);
 
-    const name = el.tags?.name || el.tags?.brand || el.tags?.operator;
-    const brand = el.tags?.brand || '';
-    const shopType = el.tags?.shop;
-    const distance = calculateDistance(lat, lng, storeLat, storeLng);
+      const data = await res.json();
 
-    return {
-      id: el.id,
-      name: name || 'Unnamed Store',
-      brand,
-      type: shopType,
-      lat: storeLat,
-      lng: storeLng,
-      distance,
-      isReal: true
-    };
-  }).filter(s => s !== null)
-    .sort((a, b) => a.distance - b.distance);
+      const stores = data.elements.map(el => {
+        const storeLat = el.lat || el.center?.lat;
+        const storeLng = el.lon || el.center?.lon;
+        if (!storeLat || !storeLng) return null;
 
-  return stores;
+        const name = el.tags?.name || el.tags?.brand || el.tags?.operator || "Unnamed Store";
+        const brand = el.tags?.brand || "";
+        const shopType = el.tags?.shop || "supermarket";
+        const distance = calculateDistance(lat, lng, storeLat, storeLng);
+
+        return { id: el.id, name, brand, type: shopType, lat: storeLat, lng: storeLng, distance, isReal: true };
+      }).filter(s => s !== null).sort((a, b) => a.distance - b.distance);
+
+      return stores; // SUCCESS on first working server
+    } catch (error) {
+      console.warn(`Overpass server failed: ${server}`, error.message);
+      lastError = error;
+    }
+  }
+
+  // All servers failed
+  throw lastError || new Error("All store databases failed");
 }
 
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -1967,19 +1971,14 @@ function renderRealStores(realStores, needed) {
           </div>
           <div class="store-distance">📍 ${store.distance.toFixed(2)} km</div>
         </div>
-        <div class="store-bar-wrap">
-          <div class="store-bar-bg">
-            <div class="store-bar-fill ${barClass}" style="width:${pctWidth}%"></div>
-          </div>
+        <div class="store-meta" style="margin-top: 0.75rem;">
+          <span style="font-size: 0.85rem; color: var(--gray-2); font-weight: 600;">
+            ️ ${store.label || store.name} ·  ${store.distance.toFixed(2)} km away
+          </span>
         </div>
-        <div class="store-meta">
-          <span>Likely has <strong>${store.itemsCount} of ${totalItems} items</strong></span>
-          <span>${pctWidth}% match</span>
-        </div>
-        <div class="store-items-preview">
-          ${store.availableItems.slice(0, 6).map(name => `<span class="store-item-tag">${name}</span>`).join('')}
-          ${store.availableItems.length > 6 ? `<span class="store-item-tag">+${store.availableItems.length - 6} more</span>` : ''}
-        </div>
+        <p style="font-size: 0.8rem; color: var(--gray-2); margin-top: 0.5rem; font-style: italic;">
+          ℹ️ Inventory not verified. Please call ahead to confirm item availability.
+        </p>
         <a href="https://www.google.com/maps/dir/?api=1&destination=${store.lat},${store.lng}"
            target="_blank"
            rel="noopener noreferrer"
