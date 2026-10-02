@@ -1,88 +1,297 @@
-    <!-- STEP 0: HERO (REDESIGNED) -->
-    <section class="step-section active hero-split" id="step0">
-        <div class="hero-container">
-            <!-- Left Side: Content -->
-            <div class="hero-content">
-                <div class="hero-badge">🌍 World Cuisine Explorer</div>
-                <h1>Don't just cook.<br><span class="highlight-gradient">Curate your meal.</span></h1>
-                <p class="hero-sub">
-                    Stop guessing ingredients. Select dishes from India, Japan, Italy, and more. 
-                    We'll merge the shopping lists, scale portions for your family, and find the best local stores.
-                </p>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartChef — World Cuisine Shopping Assistant</title>
+    <!-- THIS LINE IS CRITICAL: It connects your beautiful CSS -->
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- Navigation Bar -->
+    <nav class="nav">
+        <div class="nav-logo">
+            <span></span> SmartChef
+        </div>
+        <div class="nav-steps" id="navSteps">
+            <div class="nav-step-dot active" data-step="0"></div>
+            <div class="nav-step-line"></div>
+            <div class="nav-step-dot" data-step="1"></div>
+            <div class="nav-step-line"></div>
+            <div class="nav-step-dot" data-step="2"></div>
+            <div class="nav-step-line"></div>
+            <div class="nav-step-dot" data-step="3"></div>
+            <div class="nav-step-line"></div>
+            <div class="nav-step-dot" data-step="4"></div>
+            <div class="nav-step-line"></div>
+            <div class="nav-step-dot" data-step="5"></div>
+        </div>
+    </nav>
+
+    <!-- Thinking Overlay -->
+    <div class="thinking-overlay" id="thinkingOverlay">
+        <div class="thinking-box">
+            <div style="font-size:2.5rem">🧠</div>
+            <div class="thinking-dots">
+                <span></span><span></span><span></span>
+            </div>
+            <div class="thinking-text" id="thinkingText">Analyzing recipes...</div>
+            <div class="thinking-sub" id="thinkingSub">Combining ingredients for your meals</div>
+        </div>
+    </div>
+
+    <div class="main">
+
+        <!-- STEP 0: NEW SPLIT-SCREEN HERO -->
+        <section class="step-section active hero-split" id="step0">
+            <div class="hero-container">
+                <!-- Left Side: Content -->
+                <div class="hero-content">
+                    <div class="hero-badge">🌍 World Cuisine Explorer</div>
+                    <h1>Don't just cook.<br><span class="highlight-gradient">Curate your meal.</span></h1>
+                    <p class="hero-sub">
+                        Stop guessing ingredients. Select dishes from India, Japan, Italy, and more. 
+                        We'll merge the shopping lists, scale portions for your family, and find the best local stores.
+                    </p>
+                    
+                    <!-- Trust/Stats Row -->
+                    <div class="hero-stats">
+                        <div class="stat-item">
+                            <span class="stat-num">50+</span>
+                            <span class="stat-label">Cuisines</span>
+                        </div>
+                        <div class="stat-divider"></div>
+                        <div class="stat-item">
+                            <span class="stat-num">100%</span>
+                            <span class="stat-label">Free</span>
+                        </div>
+                        <div class="stat-divider"></div>
+                        <div class="stat-item">
+                            <span class="stat-num">Real</span>
+                            <span class="stat-label">Local Stores</span>
+                        </div>
+                    </div>
+
+                    <div class="btn-row hero-btns">
+                        <button class="btn btn-primary btn-lg" onclick="goToStep(1)">
+                            Start Planning 🍳
+                        </button>
+                        <div class="hero-note">No account required</div>
+                    </div>
+                </div>
+
+                <!-- Right Side: Visual Collage -->
+                <div class="hero-visuals">
+                    <div class="visual-card main-card">
+                        <img src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80" alt="Healthy Bowl">
+                        <div class="card-float float-1">
+                            <span class="float-icon">🥑</span>
+                            <span class="float-text">Fresh Ingredients</span>
+                        </div>
+                    </div>
+                    <div class="visual-card sub-card">
+                        <img src="https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=400&q=80" alt="Pizza">
+                    </div>
+                    <div class="visual-card sub-card sub-card-2">
+                        <img src="https://images.unsplash.com/photo-1563379926898-05f4575a45d8?auto=format&fit=crop&w=400&q=80" alt="Pasta">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feature Grid (Fills out the page) -->
+            <div class="feature-grid">
+                <div class="feature-box">
+                    <div class="fb-icon">🧠</div>
+                    <h3>Smart Merging</h3>
+                    <p>Pick Butter Chicken AND Naan? We combine the garlic and cream so you don't buy double.</p>
+                </div>
+                <div class="feature-box">
+                    <div class="fb-icon">️</div>
+                    <h3>Auto-Scaling</h3>
+                    <p>Cooking for 2 or 20? Ingredients adjust automatically to match your guest count.</p>
+                </div>
+                <div class="feature-box">
+                    <div class="fb-icon">📍</div>
+                    <h3>Real Stores</h3>
+                    <p>We don't just give you a list. We find real supermarkets near you that have these items.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- STEP 1: SELECT COUNTRY → DISHES -->
+        <section class="step-section" id="step1">
+            <div class="section-header">
+                <div class="step-badge">STEP 1</div>
+                <h2 id="step1Title">Pick a Country</h2>
+                <p id="step1Subtitle">Choose a country to explore its signature dishes</p>
+            </div>
+
+            <div class="search-filter-container">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="Search countries or dishes..." oninput="handleSearch()">
+                    <span class="search-icon">🔍</span>
+                </div>
+            </div>
+
+            <div id="countriesView">
+                <div class="region-tabs" id="regionTabs">
+                    <button class="region-tab active" data-region="all" onclick="filterRegion('all')">🌍 All</button>
+                    <button class="region-tab" data-region="south-asian" onclick="filterRegion('south-asian')">South Asian</button>
+                    <button class="region-tab" data-region="east-asian" onclick="filterRegion('east-asian')">East & SE Asian</button>
+                    <button class="region-tab" data-region="middle-eastern" onclick="filterRegion('middle-eastern')">Middle Eastern</button>
+                    <button class="region-tab" data-region="european" onclick="filterRegion('european')">European</button>
+                    <button class="region-tab" data-region="americas" onclick="filterRegion('americas')">Americas</button>
+                    <button class="region-tab" data-region="african" onclick="filterRegion('african')">African</button>
+                </div>
+                <div class="country-grid" id="countryGrid"></div>
+            </div>
+
+            <div id="dishesView" style="display:none;">
+                <button class="back-to-countries" onclick="showCountries()">← Back to Countries</button>
+                <div class="current-country-header" id="currentCountryHeader"></div>
+                <div class="dish-grid" id="dishGrid"></div>
+            </div>
+
+            <div class="selected-summary" id="selectedSummary" style="display:none;">
+                <div class="summary-top">
+                    <h3>🍽️ Selected Dishes (<span id="selectedCount">0</span>)</h3>
+                    <button class="clear-all-btn" onclick="clearAllDishes()">Clear All</button>
+                </div>
+                <div class="selected-tags" id="selectedTags"></div>
+            </div>
+
+            <div class="btn-row">
+                <button class="btn btn-secondary" onclick="goToStep(0)">← Back</button>
+                <button class="btn btn-primary" id="btnToStep2" disabled onclick="goToStep(2)">Continue →</button>
+            </div>
+        </section>
+
+        <!-- STEP 2: PEOPLE -->
+        <section class="step-section" id="step2">
+            <div class="section-header">
+                <div class="step-badge">STEP 2</div>
+                <h2>How many people?</h2>
+                <p>We'll adjust ingredient quantities for you</p>
+            </div>
+            <div class="people-selector">
+                <button class="people-btn" onclick="changePeople(-1)">−</button>
+                <div class="people-count" id="peopleCount">10</div>
+                <button class="people-btn" onclick="changePeople(1)">+</button>
+            </div>
+            <div class="people-label">people</div>
+            <div class="btn-row">
+                <button class="btn btn-secondary" onclick="goToStep(1)">← Back</button>
+                <button class="btn btn-primary" onclick="generateList()">Generate Shopping List →</button>
+            </div>
+        </section>
+
+        <!-- STEP 3: SHOPPING LIST -->
+        <section class="step-section" id="step3">
+            <div class="section-header">
+                <div class="step-badge">STEP 3</div>
+                <h2>Your Shopping List</h2>
+                <p>Tap items you already have at home</p>
+            </div>
+            <div class="shopping-list">
+                <div class="shopping-list-header">
+                    <h3>🛒 Ingredients Needed</h3>
+                    <div class="shopping-count" id="shoppingCount">0 items</div>
+                </div>
+                <div class="shopping-items" id="shoppingItems"></div>
+            </div>
+            <div class="have-hint" id="haveHint">💡 Tap items you already have to remove them from the list</div>
+            <div class="btn-row">
+                <button class="btn btn-secondary" onclick="goToStep(2)">← Back</button>
+                <button class="btn btn-success" onclick="findStores()">Find Best Stores →</button>
+            </div>
+        </section>
+
+        <!-- STEP 4: STORES (MANUAL ONLY) -->
+        <section class="step-section" id="step4">
+            <div class="section-header">
+                <div class="step-badge">STEP 4</div>
+                <h2>Where Should You Shop?</h2>
+                <p id="storeSubtitle">Enter your location to find real supermarkets nearby</p>
+            </div>
+            
+            <div class="location-box" id="locationBox">
+                <div class="manual-location-label" style="margin-bottom: 0.5rem; font-size: 1rem;">📍 Type your city or address:</div>
+                <div class="manual-location-row">
+                    <input type="text" id="manualLocationInput" placeholder="e.g., Dhaka, Bangladesh or 123 Main St, New York">
+                    <button class="manual-location-btn" id="manualLocationBtn" onclick="searchManualLocation()">Find Stores</button>
+                </div>
+                <div class="manual-location-error" id="manualLocationError" style="display:none;"></div>
                 
-                <!-- Trust/Stats Row -->
-                <div class="hero-stats">
-                    <div class="stat-item">
-                        <span class="stat-num">50+</span>
-                        <span class="stat-label">Cuisines</span>
+                <div id="locationStatusDisplay" style="display:none; margin-top: 1rem; padding: 1rem; background: var(--bg); border-radius: 12px;">
+                    <div style="font-weight: 700; color: var(--dark); margin-bottom: 0.25rem;" id="statusLabel">Location Found</div>
+                    <div style="color: var(--gray-2); font-size: 0.9rem;" id="statusAddress"></div>
+                </div>
+            </div>
+
+            <div class="store-analysis" id="storeAnalysis"></div>
+            
+            <div class="btn-row">
+                <button class="btn btn-secondary" onclick="goToStep(3)">← Back</button>
+                <button class="btn btn-primary" onclick="startShopping()" id="startShoppingBtn" style="display:none;">Start Shopping </button>
+            </div>
+        </section>
+
+        <!-- STEP 5: CHECKLIST -->
+        <section class="step-section" id="step5">
+            <div class="section-header">
+                <div class="step-badge">STEP 5</div>
+                <h2>Shopping Checklist</h2>
+                <p>Tick off items as you put them in your basket</p>
+            </div>
+            <div class="checklist-section">
+                <div class="checklist-header">
+                    <h3>️ Your Basket</h3>
+                    <div class="checklist-progress-text" id="checklistProgressText">0 / 0</div>
+                </div>
+                <div class="checklist-progress-bar">
+                    <div class="checklist-progress-fill" id="checklistProgressFill" style="width:0%"></div>
+                </div>
+                <div class="checklist-items" id="checklistItems"></div>
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-secondary" onclick="goToStep(4)">← Back</button>
+                <button class="btn btn-success" id="btnDone" disabled onclick="finishShopping()">I'm Done! ✓</button>
+            </div>
+        </section>
+
+        <!-- COMPLETION -->
+        <section class="step-section" id="stepComplete">
+            <div class="completion">
+                <div class="completion-emoji"></div>
+                <h2>You're All Set!</h2>
+                <p>You have everything you need to cook an amazing meal. Time to head home and start cooking!</p>
+                <div class="completion-features">
+                    <div class="completion-feature">
+                        <div class="cf-emoji">✅</div>
+                        <div class="cf-text">No forgotten ingredients</div>
                     </div>
-                    <div class="stat-divider"></div>
-                    <div class="stat-item">
-                        <span class="stat-num">100%</span>
-                        <span class="stat-label">Free</span>
+                    <div class="completion-feature">
+                        <div class="cf-emoji">💰</div>
+                        <div class="cf-text">No unnecessary shopping</div>
                     </div>
-                    <div class="stat-divider"></div>
-                    <div class="stat-item">
-                        <span class="stat-num">Real</span>
-                        <span class="stat-label">Local Stores</span>
+                    <div class="completion-feature">
+                        <div class="cf-emoji">🗺️</div>
+                        <div class="cf-text">Real stores near you</div>
                     </div>
                 </div>
-
-                <div class="btn-row hero-btns">
-                    <button class="btn btn-primary btn-lg" onclick="goToStep(1)">
-                        Start Planning 🍳
-                    </button>
-                    <div class="hero-note">No account required</div>
+                <div class="btn-row" style="margin-top:2rem">
+                    <button class="btn btn-primary" onclick="resetAll()">🔄 Plan Another Meal</button>
                 </div>
             </div>
+        </section>
 
-            <!-- Right Side: Visual Collage -->
-            <div class="hero-visuals">
-                <div class="visual-card main-card">
-                    <img src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80" alt="Healthy Bowl">
-                    <div class="card-float float-1">
-                        <span class="float-icon">🥑</span>
-                        <span class="float-text">Fresh Ingredients</span>
-                    </div>
-                </div>
-                <div class="visual-card sub-card">
-                    <img src="https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=400&q=80" alt="Pizza">
-                </div>
-                <div class="visual-card sub-card sub-card-2">
-                    <img src="https://images.unsplash.com/photo-1563379926898-05f4575a45d8?auto=format&fit=crop&w=400&q=80" alt="Pasta">
-                </div>
-            </div>
-        </div>
+    </div>
 
-        <!-- Feature Grid (Fills out the page) -->
-        <div class="feature-grid">
-            <div class="feature-box">
-                <div class="fb-icon"></div>
-                <h3>Smart Merging</h3>
-                <p>Pick Butter Chicken AND Naan? We combine the garlic and cream so you don't buy double.</p>
-            </div>
-            <div class="feature-box">
-                <div class="fb-icon">⚖️</div>
-                <h3>Auto-Scaling</h3>
-                <p>Cooking for 2 or 20? Ingredients adjust automatically to match your guest count.</p>
-            </div>
-            <div class="feature-box">
-                <div class="fb-icon">📍</div>
-                <h3>Real Stores</h3>
-                <p>We don't just give you a list. We find real supermarkets near you that have these items.</p>
-            </div>
-        </div>
-    </section>
-
-    <!-- STEP 1: SELECT COUNTRY → DISHES -->
-    <section class="step-section" id="step1">
-        <!-- ... rest of your step sections ... -->
-    </section>
-
-    <!-- ... other steps ... -->
-
-</div> <!-- This closes the <div class="main"> -->
-
-<script src="script.js"></script>
+    <!-- THIS LINE IS CRITICAL: It connects your massive JS file -->
+    <script src="script.js"></script>
 </body>
 </html>

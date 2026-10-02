@@ -1581,19 +1581,48 @@ function changePeople(delta) {
 }
 
 function goToStep(step) {
-  document.querySelectorAll('.step-section').forEach(s => s.classList.remove('active'));
-  document.getElementById(step === 'complete' ? 'stepComplete' : 'step' + step).classList.add('active');
-
-  const sn = typeof step === 'number' ? step : 6;
-  document.querySelectorAll('.nav-step-dot').forEach((d, i) => {
-    d.classList.remove('active', 'done');
-    if (i < sn) d.classList.add('done');
-    if (i === sn) d.classList.add('active');
-  });
-
-  document.querySelectorAll('.nav-step-line').forEach((l, i) => l.classList.toggle('done', i < sn));
-  currentStep = step;
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  // CRITICAL: Force scroll to absolute top BEFORE any DOM changes
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+  window.scrollTo(0, 0);
+  
+  // Small delay to ensure scroll happens first
+  setTimeout(() => {
+    // Hide ALL steps immediately
+    document.querySelectorAll('.step-section').forEach(s => {
+      s.classList.remove('active');
+      s.style.display = 'none'; // Force hide
+    });
+    
+    // Show ONLY the target step
+    const targetId = step === 'complete' ? 'stepComplete' : 'step' + step;
+    const target = document.getElementById(targetId);
+    if (target) {
+      target.style.display = 'block'; // Force show
+      // Trigger reflow
+      void target.offsetWidth;
+      target.classList.add('active');
+    }
+    
+    // Update navigation dots
+    const sn = typeof step === 'number' ? step : 6;
+    document.querySelectorAll('.nav-step-dot').forEach((d, i) => {
+      d.classList.remove('active', 'done');
+      if (i < sn) d.classList.add('done');
+      if (i === sn) d.classList.add('active');
+    });
+    document.querySelectorAll('.nav-step-line').forEach((l, i) => l.classList.toggle('done', i < sn));
+    
+    currentStep = step;
+    
+    // DOUBLE-CHECK: Force scroll to top again after DOM update
+    setTimeout(() => {
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      window.scrollTo(0, 0);
+    }, 50);
+    
+  }, 10);
 }
 
 function showThinking(text, sub, dur) {
@@ -1680,84 +1709,15 @@ function toggleHave(n) {
   saveState();
 }
 
-// 1. The Fallback Trigger
 function findStores() {
   const needed = shoppingList.filter(i => !haveAtHome.has(i.name));
   if (needed.length === 0) return;
 
   goToStep(4);
   resetLocationUI();
-
-  // Check if GPS is available
-  if (!navigator.geolocation) {
-    setLocationState('error', '⌨️', 'GPS not available', 'Please type your city or address below.');
-    showManualLocationInput();
-    return;
-  }
-
-  // Check if secure context (HTTPS) is required
-  if (window.isSecureContext === false) {
-    setLocationState('error', '⚠️', 'Secure connection required', 'GPS requires HTTPS. Please type your city below.');
-    showManualLocationInput();
-    return;
-  }
-
-  setLocationState('loading', '🔍', 'Locating you...', 'Requesting GPS access from your browser');
-
-  navigator.geolocation.getCurrentPosition(
-    async (position) => {
-      userLocation = {
-        lat: position.coords.latitude,
-        lng: position.coords.longitude
-      };
-      await processLocation(userLocation.lat, userLocation.lng, needed, 'GPS');
-    },
-    (error) => {
-      let msg = 'Could not get your location';
-      if (error.code === 1) msg = 'Location permission denied';
-      else if (error.code === 2) msg = 'Location unavailable';
-      else if (error.code === 3) msg = 'Location request timed out';
-
-      // If GPS fails:
-      setLocationState('error', '⌨️', 'GPS failed', msg + '. Please type your city below.');
-      showManualLocationInput(); // <--- This reveals the input box
-    },
-    { enableHighAccuracy: true, timeout: 15000, maximumAge: 300000 }
-  );
+  document.getElementById('manualLocationInput').focus();
 }
 
-function retryLocation() {
-  const needed = shoppingList.filter(i => !haveAtHome.has(i.name));
-  if (needed.length === 0) return;
-
-  resetLocationUI();
-  setLocationState('loading', '🔍', 'Trying again...', 'Requesting GPS access');
-
-  if (!navigator.geolocation) {
-    setLocationState('error', '⌨️', 'GPS not available', 'Please type your city or address below.');
-    showManualLocationInput();
-    return;
-  }
-
-  navigator.geolocation.getCurrentPosition(
-    async (position) => {
-      userLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
-      await processLocation(userLocation.lat, userLocation.lng, needed, 'GPS');
-    },
-    () => {
-      setLocationState('error', '⌨️', 'GPS failed again', 'Please type your city or address below.');
-      showManualLocationInput();
-    },
-    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-  );
-}
-
-// 2. Showing the Input Box
-function showManualLocationInput() {
-  document.getElementById('manualLocationWrap').style.display = 'block';
-}
-
-// 3. Handling the Manual Search
 async function searchManualLocation() {
   const input = document.getElementById('manualLocationInput');
   const errorEl = document.getElementById('manualLocationError');
@@ -1773,7 +1733,7 @@ async function searchManualLocation() {
   btn.disabled = true;
   btn.textContent = 'Searching...';
   errorEl.style.display = 'none';
-  setLocationState('loading', '🔍', 'Searching for location...', `Looking up "${query}"`);
+  setLocationState('loading', 'Searching for location...', `Looking up "${query}"`);
 
   try {
     // ... fetches coordinates from OpenStreetMap ...
@@ -1799,34 +1759,33 @@ async function searchManualLocation() {
     console.error('Manual location error:', err);
     errorEl.textContent = `Could not find "${query}". Try a different spelling or a nearby city.`;
     errorEl.style.display = 'block';
-    setLocationState('error', '⚠️', 'Search failed', 'Please try a different city or address');
+    setLocationState('error', 'Search failed', 'Please try a different city or address');
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Search';
+    btn.textContent = 'Find Stores';
   }
 }
 
 async function processLocation(lat, lng, needed, source, customName) {
-  setLocationState('loading', '🌍', 'Reading your address...', 'Identifying your neighborhood');
+  setLocationState('loading', 'Reading your address...', 'Identifying your neighborhood');
 
   let addressName = customName;
   if (!addressName) {
     addressName = await getAddressName(lat, lng);
   }
 
-  setLocationState('loading', '🏪', 'Finding nearby supermarkets...', 'Scanning OpenStreetMap database');
+  setLocationState('loading', 'Finding nearby supermarkets...', 'Scanning OpenStreetMap database');
 
   try {
     const realStores = await fetchRealStores(lat, lng);
 
     if (realStores.length > 0) {
-      setLocationState('success', '✅', 'Location found', addressName || `${lat.toFixed(3)}°, ${lng.toFixed(3)}°`);
+      setLocationState('success', 'Location found', addressName || `${lat.toFixed(3)}°, ${lng.toFixed(3)}°`);
       renderRealStores(realStores, needed);
       document.getElementById('storeSubtitle').textContent = `Found ${realStores.length} real supermarkets near you`;
       document.getElementById('startShoppingBtn').style.display = 'inline-flex';
-      document.getElementById('retryLocationBtn').style.display = 'inline-flex';
     } else {
-      setLocationState('error', '🔍', 'No supermarkets found', `None found within 3 km of ${addressName || 'your location'}`);
+      setLocationState('error', 'No supermarkets found', `None found within 3 km of ${addressName || 'your location'}`);
       document.getElementById('storeAnalysis').innerHTML = `
         <div class="no-stores-msg">
           <div class="no-stores-emoji">🏜️</div>
@@ -1834,11 +1793,10 @@ async function processLocation(lat, lng, needed, source, customName) {
           <p>We couldn't find any supermarkets within 3 km of your location. Try searching for a different city or address using the search box above.</p>
         </div>
       `;
-      document.getElementById('retryLocationBtn').style.display = 'inline-flex';
     }
   } catch (err) {
     console.error('Store fetch error:', err);
-    setLocationState('error', '⚠️', 'Network error', 'Could not reach the store database. Check your internet connection.');
+    setLocationState('error', 'Network error', 'Could not reach the store database. Check your internet connection.');
     document.getElementById('storeAnalysis').innerHTML = `
       <div class="no-stores-msg">
         <div class="no-stores-emoji">📡</div>
@@ -1846,30 +1804,28 @@ async function processLocation(lat, lng, needed, source, customName) {
         <p>We couldn't reach the OpenStreetMap database. Please check your internet connection and try again.</p>
       </div>
     `;
-    document.getElementById('retryLocationBtn').style.display = 'inline-flex';
   }
 }
 
 function resetLocationUI() {
   const box = document.getElementById('locationBox');
   box.className = 'location-box';
-  document.getElementById('locationLabel').textContent = '';
-  document.getElementById('locationAddress').textContent = '';
-  document.getElementById('manualLocationWrap').style.display = 'none';
   document.getElementById('manualLocationInput').value = '';
   document.getElementById('manualLocationError').style.display = 'none';
+  document.getElementById('locationStatusDisplay').style.display = 'none';
+  document.getElementById('statusLabel').textContent = '';
+  document.getElementById('statusAddress').textContent = '';
   document.getElementById('storeAnalysis').innerHTML = '';
-  document.getElementById('storeSubtitle').textContent = 'Finding real supermarkets near you';
+  document.getElementById('storeSubtitle').textContent = 'Enter your location to find real supermarkets nearby';
   document.getElementById('startShoppingBtn').style.display = 'none';
-  document.getElementById('retryLocationBtn').style.display = 'none';
 }
 
-function setLocationState(state, icon, label, address) {
+function setLocationState(state, label, address) {
   const box = document.getElementById('locationBox');
   box.className = 'location-box ' + state;
-  document.getElementById('locationIconCircle').textContent = icon;
-  document.getElementById('locationLabel').textContent = label;
-  document.getElementById('locationAddress').textContent = address;
+  document.getElementById('locationStatusDisplay').style.display = 'block';
+  document.getElementById('statusLabel').textContent = label;
+  document.getElementById('statusAddress').textContent = address;
 }
 
 async function getAddressName(lat, lng) {
@@ -2137,5 +2093,15 @@ function resetAll() {
   renderCountries();
   goToStep(0);
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  const logo = document.querySelector('.nav-logo');
+  if (logo) {
+    logo.style.cursor = 'pointer';
+    logo.addEventListener('click', () => {
+      resetAll();
+    });
+  }
+});
 
 init();
