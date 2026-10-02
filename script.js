@@ -2055,11 +2055,33 @@ function updateChecklistProgress(t) {
 }
 
 function finishShopping() {
-  document.querySelectorAll('.step-section').forEach(s => s.classList.remove('active'));
-  document.getElementById('stepComplete').classList.add('active');
+  // 1. Hide ALL steps immediately using display:none to remove them from layout flow
+  document.querySelectorAll('.step-section').forEach(s => {
+    s.classList.remove('active');
+    s.style.display = 'none';
+  });
+
+  // 2. Show ONLY the completion screen
+  const completeSection = document.getElementById('stepComplete');
+  if (completeSection) {
+    completeSection.style.display = 'block';
+    // Trigger reflow to restart CSS animations
+    void completeSection.offsetWidth;
+    completeSection.classList.add('active');
+  } else {
+    console.error('Completion section #stepComplete not found in HTML!');
+    alert('Error: Completion screen is missing. Please check your HTML.');
+    return;
+  }
+
+  // 3. Mark all nav dots as completed
   document.querySelectorAll('.nav-step-dot').forEach(d => d.classList.add('done'));
   document.querySelectorAll('.nav-step-line').forEach(l => l.classList.add('done'));
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // 4. CRITICAL: Instantly scroll to the very top so users see the message
+  window.scrollTo({ top: 0, behavior: 'instant' });
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
 }
 
 function resetAll() {
