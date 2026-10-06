@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SmartChef — World Cuisine Shopping Assistant</title>
+    <meta name="description" content="SmartChef merges the ingredient lists of dishes from 50+ world cuisines, scales portions to your guest count, and finds real supermarkets near you that stock them.">
+    <meta name="theme-color" content="#FF6B35">
+    <link rel="icon" type="image/png" href="assets/logo.png">
+    <link rel="apple-touch-icon" href="assets/logo.png">
     <!-- THIS LINE IS CRITICAL: It connects your beautiful CSS -->
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,7 +19,7 @@
     <!-- Navigation Bar -->
     <nav class="nav">
         <div class="nav-logo">
-            <span></span> SmartChef
+            <img src="assets/logo.png" alt="" class="nav-logo-img"> SmartChef
         </div>
         <div class="nav-steps" id="navSteps">
             <div class="nav-step-dot active" data-step="0"></div>
@@ -119,6 +123,51 @@
                     <h3>Real Stores</h3>
                     <p>We don't just give you a list. We find real supermarkets near you that have these items.</p>
                 </div>
+            </div>
+
+            <!-- How It Works -->
+            <div class="how-it-works">
+                <h2 class="hiw-title">How SmartChef works</h2>
+                <p class="hiw-sub">Four steps from "what should we cook?" to a full basket in your hand.</p>
+                <div class="hiw-grid">
+                    <div class="hiw-step">
+                        <div class="hiw-num">1</div>
+                        <h3>Pick your dishes</h3>
+                        <p>Browse signature dishes country by country — Bangladeshi Biryani, Japanese Sushi, Thai Pad Thai, Italian Pasta — and add as many as you like to one meal plan.</p>
+                    </div>
+                    <div class="hiw-step">
+                        <div class="hiw-num">2</div>
+                        <h3>Set your headcount</h3>
+                        <p>Tell us how many people are eating. Every ingredient quantity is scaled up or down to match, so nothing runs out and nothing goes to waste.</p>
+                    </div>
+                    <div class="hiw-step">
+                        <div class="hiw-num">3</div>
+                        <h3>Get one merged list</h3>
+                        <p>Shared ingredients across dishes are combined into a single shopping list. Tick off what is already in your pantry and it drops off the list.</p>
+                    </div>
+                    <div class="hiw-step">
+                        <div class="hiw-num">4</div>
+                        <h3>Shop at real stores</h3>
+                        <p>Type your city or street and SmartChef locates real supermarkets near you from OpenStreetMap data, ranked from closest to farthest.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cuisine examples -->
+            <div class="cuisine-strip">
+                <span class="cuisine-strip-label">On the menu today</span>
+                <div class="cuisine-chips">
+                    <span class="cuisine-chip">🇧🇩 Biryani</span>
+                    <span class="cuisine-chip">🇮🇳 Butter Chicken</span>
+                    <span class="cuisine-chip">🇯🇵 Sushi</span>
+                    <span class="cuisine-chip">🇰🇷 Bibimbap</span>
+                    <span class="cuisine-chip">🇹🇭 Pad Thai</span>
+                    <span class="cuisine-chip">🇱🇧 Hummus</span>
+                    <span class="cuisine-chip">🇮🇹 Pasta Carbonara</span>
+                    <span class="cuisine-chip">🇲🇽 Tacos</span>
+                    <span class="cuisine-chip">🇳🇵 Momo</span>
+                </div>
+                <p class="cuisine-strip-note">...and dozens more across South Asia, East Asia, the Middle East, Europe, the Americas and Africa.</p>
             </div>
         </section>
 
@@ -292,6 +341,21 @@
         </section>
 
     </div>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <img src="assets/logo.png" alt="" class="footer-logo">
+                <div>
+                    <div class="footer-name">SmartChef</div>
+                    <div class="footer-tag">World cuisine, one merged shopping list.</div>
+                </div>
+            </div>
+            <div class="footer-credit">Developed by Hafsa</div>
+        </div>
+        <div class="footer-base">Dishes, ingredients &amp; store locations © OpenStreetMap contributors</div>
+    </footer>
 
     <!-- THIS LINE IS CRITICAL: It connects your massive JS file -->
     <script src="script.js"></script>
