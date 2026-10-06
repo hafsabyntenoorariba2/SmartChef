@@ -1721,49 +1721,65 @@ function findStores() {
 async function searchManualLocation() {
   const input = document.getElementById('manualLocationInput');
   const errorEl = document.getElementById('manualLocationError');
-  const query = input.value.trim();
+  let query = input.value.trim();
 
   if (!query) {
-    errorEl.textContent = 'Please enter a city or address';
+    errorEl.textContent = 'Please enter a city';
     errorEl.style.display = 'block';
     return;
   }
 
+  // Optional: Clean up complex addresses automatically
+  if (query.toLowerCase().includes('road') || query.toLowerCase().includes('sector')) {
+    const parts = query.split(/[\s,]+/);
+    const simplified = parts.slice(0, 2).join(', ');
+    if (simplified.length > 3) query = simplified;
+  }
+
   const btn = document.getElementById('manualLocationBtn');
   btn.disabled = true;
-  btn.textContent = 'Searching...';
+  btn.textContent = 'Connecting...';
   errorEl.style.display = 'none';
-  setLocationState('loading', 'Searching for location...', `Looking up "${query}"`);
+
+  setLocationState('loading', '🔍 Connecting...', `Looking up "${query}"`);
 
   try {
-    // ... fetches coordinates from OpenStreetMap ...
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&addressdetails=1`, {
-      headers: { 'Accept-Language': 'en' }
-    });
+    // ✅ THIS IS THE FIX: Talk directly to YOUR Node.js server
+    const res = await fetch(`http://localhost:3000/api/geocode?q=${encodeURIComponent(query)}`);
 
-    if (!res.ok) throw new Error('Search failed');
+    if (!res.ok) throw new Error('Server returned an error');
 
     const data = await res.json();
-    if (!data || data.length === 0) throw new Error('Location not found');
 
-    const result = data[0];
-    const lat = parseFloat(result.lat);
-    const lng = parseFloat(result.lon);
-    const displayName = result.display_name || query;
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new Error('Location not found');
+    }
 
-    userLocation = { lat, lng };
-    const needed = shoppingList.filter(i => !haveAtHome.has(i.name));
-    // ... uses those coordinates to find stores ...
-    await processLocation(lat, lng, needed, 'Manual', displayName);
+    processResult(data[0], query);
   } catch (err) {
-    console.error('Manual location error:', err);
-    errorEl.textContent = `Could not find "${query}". Try a different spelling or a nearby city.`;
+    console.error(err);
+    errorEl.textContent = `Connection failed. Is 'node server.js' running?`;
     errorEl.style.display = 'block';
-    setLocationState('error', 'Search failed', 'Please try a different city or address');
+    setLocationState('error', '⚠️ Server Offline', 'Check your terminal window');
   } finally {
     btn.disabled = false;
     btn.textContent = 'Find Stores';
   }
+}
+
+// Helper to handle the successful result
+function processResult(result, originalQuery) {
+  const lat = parseFloat(result.lat);
+  const lng = parseFloat(result.lon);
+  const displayName = result.display_name || originalQuery;
+
+  userLocation = { lat, lng };
+
+  setLocationState('success', '✅ Location Found', displayName);
+
+  const needed = shoppingList.filter(i => !haveAtHome.has(i.name));
+  // Immediately trigger store search
+  processLocation(lat, lng, needed, 'Manual', displayName);
 }
 
 async function processLocation(lat, lng, needed, source, customName) {
@@ -1820,12 +1836,16 @@ function resetLocationUI() {
   document.getElementById('startShoppingBtn').style.display = 'none';
 }
 
-function setLocationState(state, label, address) {
+function setLocationState(state, labelOrIcon, addressOrLabel, detail) {
   const box = document.getElementById('locationBox');
   box.className = 'location-box ' + state;
   document.getElementById('locationStatusDisplay').style.display = 'block';
-  document.getElementById('statusLabel').textContent = label;
-  document.getElementById('statusAddress').textContent = address;
+  document.getElementById('statusLabel').textContent = detail === undefined
+    ? labelOrIcon
+    : `${labelOrIcon} ${addressOrLabel}`;
+  document.getElementById('statusAddress').textContent = detail === undefined
+    ? addressOrLabel
+    : detail;
 }
 
 async function getAddressName(lat, lng) {
@@ -1854,60 +1874,26 @@ async function getAddressName(lat, lng) {
 }
 
 async function fetchRealStores(lat, lng, radius = 2500) {
-  const query = `
-    [out:json][timeout:15];
-    (
-      node["shop"="supermarket"](around:${radius},${lat},${lng});
-      way["shop"="supermarket"](around:${radius},${lat},${lng});
-      node["shop"="grocery"](around:${radius},${lat},${lng});
-      way["shop"="grocery"](around:${radius},${lat},${lng});
-    );
-    out center 15;
-  `;
+  const res = await fetch('http://localhost:3000/api/stores', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lat, lng, radius })
+  });
+  if (!res.ok) throw new Error(`Server returned ${res.status}`);
 
-  // Try multiple Overpass servers sequentially
-  const servers = [
-    "https://overpass-api.de/api/interpreter",
-    "https://overpass.kumi.systems/api/interpreter",
-    "https://overpass.private.coffee/api/interpreter"
-  ];
+  const data = await res.json();
+  return (data.elements || []).map(el => {
+    const storeLat = el.lat ?? el.center?.lat;
+    const storeLng = el.lon ?? el.center?.lon;
+    if (storeLat == null || storeLng == null) return null;
 
-  let lastError = null;
+    const name = el.tags?.name || el.tags?.brand || el.tags?.operator || "Local Store";
+    const brand = el.tags?.brand || "";
+    const shopType = el.tags?.shop || "supermarket";
+    const distance = calculateDistance(lat, lng, storeLat, storeLng);
 
-  for (const server of servers) {
-    try {
-      const res = await fetch(server, {
-        method: "POST",
-        body: query,
-        headers: { "Content-Type": "text/plain" }
-      });
-
-      if (!res.ok) throw new Error(`Server returned ${res.status}`);
-
-      const data = await res.json();
-
-      const stores = data.elements.map(el => {
-        const storeLat = el.lat || el.center?.lat;
-        const storeLng = el.lon || el.center?.lon;
-        if (!storeLat || !storeLng) return null;
-
-        const name = el.tags?.name || el.tags?.brand || el.tags?.operator || "Unnamed Store";
-        const brand = el.tags?.brand || "";
-        const shopType = el.tags?.shop || "supermarket";
-        const distance = calculateDistance(lat, lng, storeLat, storeLng);
-
-        return { id: el.id, name, brand, type: shopType, lat: storeLat, lng: storeLng, distance, isReal: true };
-      }).filter(s => s !== null).sort((a, b) => a.distance - b.distance);
-
-      return stores; // SUCCESS on first working server
-    } catch (error) {
-      console.warn(`Overpass server failed: ${server}`, error.message);
-      lastError = error;
-    }
-  }
-
-  // All servers failed
-  throw lastError || new Error("All store databases failed");
+    return { id: el.id, name, brand, type: shopType, lat: storeLat, lng: storeLng, distance, isReal: true };
+  }).filter(s => s !== null).sort((a, b) => a.distance - b.distance);
 }
 
 function calculateDistance(lat1, lon1, lat2, lon2) {
