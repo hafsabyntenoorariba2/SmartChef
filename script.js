@@ -1323,6 +1323,7 @@ let currentRegion = 'all';
 let currentSearch = '';
 let currentCountry = null;
 let userLocation = null;
+let lastStoreRadius = 2500;
 
 function saveState() {
   localStorage.setItem('smartchef_dishes', JSON.stringify(selectedDishes));
@@ -1782,6 +1783,56 @@ function processResult(result, originalQuery) {
   processLocation(lat, lng, needed, 'Manual', displayName);
 }
 
+const GPS_ERRORS = {
+  1: 'Location permission denied — type your city instead.',
+  2: 'GPS signal unavailable — type your city instead.',
+  3: 'GPS timed out — type your city instead.'
+};
+
+async function useMyLocation() {
+  const btn = document.getElementById('gpsBtn');
+  const errorEl = document.getElementById('manualLocationError');
+
+  if (!navigator.geolocation) {
+    errorEl.textContent = 'This device has no GPS — type your city instead.';
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  const originalLabel = btn.textContent;
+  btn.textContent = 'Locating...';
+  errorEl.style.display = 'none';
+  setLocationState('loading', '📡 Getting GPS fix...', 'Allow location access if prompted');
+
+  try {
+    const pos = await new Promise((resolve, reject) =>
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000
+      })
+    );
+
+    const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+    userLocation = { lat, lng };
+
+    const addressName = await getAddressName(lat, lng);
+    const label = `${addressName}  (±${Math.round(accuracy)} m)`;
+    const needed = shoppingList.filter(i => !haveAtHome.has(i.name));
+    await processLocation(lat, lng, needed, 'GPS', label);
+  } catch (err) {
+    console.error('GPS error:', err);
+    const msg = GPS_ERRORS[err && err.code] || 'Could not get your location — type your city instead.';
+    errorEl.textContent = msg;
+    errorEl.style.display = 'block';
+    setLocationState('error', '⚠️ GPS unavailable', msg);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+  }
+}
+
 async function processLocation(lat, lng, needed, source, customName) {
   setLocationState('loading', 'Reading your address...', 'Identifying your neighborhood');
 
@@ -1801,12 +1852,13 @@ async function processLocation(lat, lng, needed, source, customName) {
       document.getElementById('storeSubtitle').textContent = `Found ${realStores.length} real supermarkets near you`;
       document.getElementById('startShoppingBtn').style.display = 'inline-flex';
     } else {
-      setLocationState('error', 'No supermarkets found', `None found within 3 km of ${addressName || 'your location'}`);
+      const km = Math.round(lastStoreRadius / 1000);
+      setLocationState('error', 'No supermarkets found', `None found within ${km} km of ${addressName || 'your location'}`);
       document.getElementById('storeAnalysis').innerHTML = `
         <div class="no-stores-msg">
           <div class="no-stores-emoji">🏜️</div>
           <h3>No supermarkets nearby</h3>
-          <p>We couldn't find any supermarkets within 3 km of your location. Try searching for a different city or address using the search box above.</p>
+          <p>We couldn't find any supermarkets within ${km} km of your location. Try searching for a different city or address using the search box above.</p>
         </div>
       `;
     }
@@ -1850,9 +1902,8 @@ function setLocationState(state, labelOrIcon, addressOrLabel, detail) {
 
 async function getAddressName(lat, lng) {
   try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1`, {
-      headers: { 'Accept-Language': 'en' }
-    });
+    const res = await fetch(`http://localhost:3000/api/reverse?lat=${lat}&lon=${lng}`);
+    if (!res.ok) throw new Error(`Reverse geocode returned ${res.status}`);
     const data = await res.json();
 
     if (data.address) {
@@ -1882,12 +1933,21 @@ async function fetchRealStores(lat, lng, radius = 2500) {
   if (!res.ok) throw new Error(`Server returned ${res.status}`);
 
   const data = await res.json();
+  lastStoreRadius = data.sc_radius || radius;
+
+  const seen = new Set();
   return (data.elements || []).map(el => {
     const storeLat = el.lat ?? el.center?.lat;
     const storeLng = el.lon ?? el.center?.lon;
     if (storeLat == null || storeLng == null) return null;
+    if (el.tags?.disused || el.tags?.shop === 'no') return null;
 
     const name = el.tags?.name || el.tags?.brand || el.tags?.operator || "Local Store";
+    // Same shop is sometimes mapped as both a node and a way; drop the duplicate.
+    const key = `${name.toLowerCase()}|${storeLat.toFixed(3)}|${storeLng.toFixed(3)}`;
+    if (seen.has(key)) return null;
+    seen.add(key);
+
     const brand = el.tags?.brand || "";
     const shopType = el.tags?.shop || "supermarket";
     const distance = calculateDistance(lat, lng, storeLat, storeLng);
@@ -2112,3 +2172,44 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 init();
+
+/* --- Modern polish: reveal-on-scroll + nav elevation --- */
+document.documentElement.classList.add('js');
+(() => {
+  const nav = document.querySelector('.nav');
+  addEventListener('scroll', () => {
+    nav.classList.toggle('scrolled', scrollY > 8);
+  }, { passive: true });
+
+  const SEL = '.feature-box, .hiw-step, .cuisine-strip, .country-card, .dish-card, .store-card, .combo-card, .completion-feature';
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('in');
+        io.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.12 });
+
+  const scan = root => {
+    (root || document).querySelectorAll(SEL).forEach(el => {
+      if (!el.classList.contains('reveal')) {
+        el.classList.add('reveal');
+        io.observe(el);
+      }
+    });
+  };
+
+  new MutationObserver(muts => {
+    muts.forEach(m => m.addedNodes.forEach(n => {
+      if (n.nodeType !== 1) return;
+      if (n.matches(SEL) && !n.classList.contains('reveal')) {
+        n.classList.add('reveal');
+        io.observe(n);
+      }
+      scan(n);
+    }));
+  }).observe(document.body, { childList: true, subtree: true });
+
+  scan();
+})();

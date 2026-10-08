@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SmartChef — World Cuisine Shopping Assistant</title>
     <meta name="description" content="SmartChef merges the ingredient lists of dishes from 50+ world cuisines, scales portions to your guest count, and finds real supermarkets near you that stock them.">
-    <meta name="theme-color" content="#FF6B35">
+    <meta name="theme-color" content="#FF8FAB">
     <link rel="icon" type="image/png" href="assets/logo.png">
     <link rel="apple-touch-icon" href="assets/logo.png">
     <!-- THIS LINE IS CRITICAL: It connects your beautiful CSS -->
@@ -274,6 +274,8 @@
                     <input type="text" id="manualLocationInput" placeholder="e.g., Dhaka, Bangladesh or 123 Main St, New York">
                     <button class="manual-location-btn" id="manualLocationBtn" onclick="searchManualLocation()">Find Stores</button>
                 </div>
+                <div class="location-or"><span>or</span></div>
+                <button type="button" class="gps-btn" id="gpsBtn" onclick="useMyLocation()">🎯 Use my current location</button>
                 <div class="manual-location-error" id="manualLocationError" style="display:none;"></div>
                 
                 <!-- Location Status Display (Shows after successful search) -->
@@ -352,7 +354,7 @@
                     <div class="footer-tag">World cuisine, one merged shopping list.</div>
                 </div>
             </div>
-            <div class="footer-credit">Developed by Hafsa</div>
+            <div class="footer-credit">Developed by Hafsa Bynte Noor Ariba</div>
         </div>
         <div class="footer-base">Dishes, ingredients &amp; store locations © OpenStreetMap contributors</div>
     </footer>
