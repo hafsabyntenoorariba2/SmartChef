@@ -1325,6 +1325,8 @@ let currentCountry = null;
 let userLocation = null;
 let lastStoreRadius = 2500;
 let lastTagCount = 0;
+// Follow the page's own host so phones on the LAN reach the backend too (localhost would point at the phone)
+const API_BASE = `${location.protocol}//${location.hostname}:3000`;
 
 function saveState() {
   localStorage.setItem('smartchef_dishes', JSON.stringify(selectedDishes));
@@ -1776,7 +1778,7 @@ async function searchManualLocation() {
 
   try {
     // ✅ THIS IS THE FIX: Talk directly to YOUR Node.js server
-    const res = await fetch(`http://localhost:3000/api/geocode?q=${encodeURIComponent(query)}`);
+    const res = await fetch(`${API_BASE}/api/geocode?q=${encodeURIComponent(query)}`);
 
     if (!res.ok) throw new Error('Server returned an error');
 
@@ -1789,9 +1791,9 @@ async function searchManualLocation() {
     processResult(data[0], query);
   } catch (err) {
     console.error(err);
-    errorEl.textContent = `Connection failed. Is 'node server.js' running?`;
+    errorEl.textContent = `Server unreachable — keep 'node server.js' running and make sure this device is on the same Wi-Fi as that computer.`;
     errorEl.style.display = 'block';
-    setLocationState('error', '⚠️ Server Offline', 'Check your terminal window');
+    setLocationState('error', '⚠️ Server Offline', 'Run node server.js on the computer hosting this site');
   } finally {
     btn.disabled = false;
     btn.textContent = 'Find Stores';
@@ -1932,7 +1934,7 @@ function setLocationState(state, labelOrIcon, addressOrLabel, detail) {
 
 async function getAddressName(lat, lng) {
   try {
-    const res = await fetch(`http://localhost:3000/api/reverse?lat=${lat}&lon=${lng}`);
+    const res = await fetch(`${API_BASE}/api/reverse?lat=${lat}&lon=${lng}`);
     if (!res.ok) throw new Error(`Reverse geocode returned ${res.status}`);
     const data = await res.json();
 
@@ -1955,7 +1957,7 @@ async function getAddressName(lat, lng) {
 }
 
 async function fetchRealStores(lat, lng, radius = 2500) {
-  const res = await fetch('http://localhost:3000/api/stores', {
+  const res = await fetch(`${API_BASE}/api/stores`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ lat, lng, radius })
