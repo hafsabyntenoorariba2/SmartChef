@@ -1751,6 +1751,21 @@ function findStores() {
   document.getElementById('manualLocationInput').focus();
 }
 
+// Prefer the local backend (cached, retried); fall back to direct Nominatim when it
+// can't be reached — e.g. a phone on a network that can't see this computer's port 3000.
+async function geocode(query) {
+  try {
+    const res = await fetch(`${API_BASE}/api/geocode?q=${encodeURIComponent(query)}`);
+    if (!res.ok) throw new Error(`Backend geocode returned ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn('Backend geocode unavailable, using direct Nominatim:', err.message);
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(query)}&limit=1&accept-language=en`);
+    if (!res.ok) throw new Error(`Direct geocode returned ${res.status}`);
+    return await res.json();
+  }
+}
+
 async function searchManualLocation() {
   const input = document.getElementById('manualLocationInput');
   const errorEl = document.getElementById('manualLocationError');
@@ -1777,12 +1792,7 @@ async function searchManualLocation() {
   setLocationState('loading', '🔍 Connecting...', `Looking up "${query}"`);
 
   try {
-    // ✅ THIS IS THE FIX: Talk directly to YOUR Node.js server
-    const res = await fetch(`${API_BASE}/api/geocode?q=${encodeURIComponent(query)}`);
-
-    if (!res.ok) throw new Error('Server returned an error');
-
-    const data = await res.json();
+    const data = await geocode(query);
 
     if (!Array.isArray(data) || data.length === 0) {
       throw new Error('Location not found');
@@ -1791,9 +1801,9 @@ async function searchManualLocation() {
     processResult(data[0], query);
   } catch (err) {
     console.error(err);
-    errorEl.textContent = `Server unreachable — keep 'node server.js' running and make sure this device is on the same Wi-Fi as that computer.`;
+    errorEl.textContent = 'Location search failed — check your internet connection and try again.';
     errorEl.style.display = 'block';
-    setLocationState('error', '⚠️ Server Offline', 'Run node server.js on the computer hosting this site');
+    setLocationState('error', '⚠️ Search Failed', 'Neither the local server nor OpenStreetMap answered');
   } finally {
     btn.disabled = false;
     btn.textContent = 'Find Stores';
@@ -1932,11 +1942,22 @@ function setLocationState(state, labelOrIcon, addressOrLabel, detail) {
     : detail;
 }
 
-async function getAddressName(lat, lng) {
+async function reverseGeocode(lat, lng) {
   try {
     const res = await fetch(`${API_BASE}/api/reverse?lat=${lat}&lon=${lng}`);
-    if (!res.ok) throw new Error(`Reverse geocode returned ${res.status}`);
-    const data = await res.json();
+    if (!res.ok) throw new Error(`Backend reverse returned ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn('Backend reverse unavailable, using direct Nominatim:', err.message);
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1&accept-language=en`);
+    if (!res.ok) throw new Error(`Direct reverse returned ${res.status}`);
+    return await res.json();
+  }
+}
+
+async function getAddressName(lat, lng) {
+  try {
+    const data = await reverseGeocode(lat, lng);
 
     if (data.address) {
       const parts = [];
@@ -1956,15 +1977,36 @@ async function getAddressName(lat, lng) {
   }
 }
 
-async function fetchRealStores(lat, lng, radius = 2500) {
-  const res = await fetch(`${API_BASE}/api/stores`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ lat, lng, radius })
-  });
-  if (!res.ok) throw new Error(`Server returned ${res.status}`);
+async function fetchDirectOverpass(lat, lng, radius) {
+  const query = `[out:json][timeout:15];nwr["shop"~"^(supermarket|grocery)$"](around:${radius},${lat},${lng});out center 30;`;
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `data=${encodeURIComponent(query)}`
+    });
+    if (res.ok) return await res.json();
+    const retryable = res.status === 429 || res.status === 503 || res.status === 504;
+    const BACKOFF = [4000, 9000];
+    if (!retryable || attempt >= BACKOFF.length) throw new Error(`Overpass returned ${res.status}`);
+    await new Promise(r => setTimeout(r, BACKOFF[attempt]));
+  }
+}
 
-  const data = await res.json();
+async function fetchRealStores(lat, lng, radius = 2500) {
+  let data;
+  try {
+    const res = await fetch(`${API_BASE}/api/stores`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lat, lng, radius })
+    });
+    if (!res.ok) throw new Error(`Server returned ${res.status}`);
+    data = await res.json();
+  } catch (err) {
+    console.warn('Backend store fetch unavailable, using direct Overpass:', err.message);
+    data = await fetchDirectOverpass(lat, lng, radius);
+  }
   lastStoreRadius = data.sc_radius || radius;
 
   const seen = new Set();
