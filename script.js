@@ -1324,6 +1324,7 @@ let currentSearch = '';
 let currentCountry = null;
 let userLocation = null;
 let lastStoreRadius = 2500;
+let lastTagCount = 0;
 
 function saveState() {
   localStorage.setItem('smartchef_dishes', JSON.stringify(selectedDishes));
@@ -1381,6 +1382,9 @@ function init() {
   loadState();
   setupShareButton();
   renderCountries();
+  moveTabGlider();
+  addEventListener('resize', moveTabGlider);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(moveTabGlider);
 }
 
 function renderCountries() {
@@ -1405,8 +1409,8 @@ function renderCountries() {
     return;
   }
 
-  grid.innerHTML = countries.map(c => `
-    <div class="country-card ${c.selectedCount > 0 ? 'has-selected' : ''}" onclick="openCountry('${c.id}')">
+  grid.innerHTML = countries.map((c, i) => `
+    <div class="country-card ${c.selectedCount > 0 ? 'has-selected' : ''}" style="--i:${i}" onclick="openCountry('${c.id}')">
       <div class="country-flag">${c.emoji}</div>
       <div class="country-name">${c.name}</div>
       <div class="country-dish-count">${c.dishes.length} dishes</div>
@@ -1419,7 +1423,16 @@ function renderCountries() {
 function filterRegion(region) {
   currentRegion = region;
   document.querySelectorAll('.region-tab').forEach(tab => tab.classList.toggle('active', tab.dataset.region === region));
+  moveTabGlider();
   renderCountries();
+}
+
+function moveTabGlider() {
+  const glider = document.getElementById('tabGlider');
+  const active = document.querySelector('.region-tab.active');
+  if (!glider || !active) return;
+  glider.style.width = `${active.offsetWidth}px`;
+  glider.style.transform = `translateX(${active.offsetLeft}px)`;
 }
 
 function openCountry(cuisineId) {
@@ -1476,11 +1489,11 @@ function renderDishes() {
     return;
   }
 
-  grid.innerHTML = dishes.map(dish => {
+  grid.innerHTML = dishes.map((dish, i) => {
     const isSelected = selectedDishes.some(d => d.name === dish.name && d.cuisineId === currentCountry.id);
     const safeName = dish.name.replace(/'/g, "\\'");
     return `
-      <div class="dish-card ${isSelected ? 'selected' : ''}" onclick="toggleDish('${safeName}')">
+      <div class="dish-card ${isSelected ? 'selected' : ''}" style="--i:${i}" data-name="${dish.name.replace(/"/g, '&quot;')}" onclick="toggleDish('${safeName}')">
         <div class="check-mark">✓</div>
         <div class="dish-emoji">${dish.ingredients[0]?.icon || '🍽️'}</div>
         <div class="dish-name">${dish.name}</div>
@@ -1516,7 +1529,12 @@ function toggleDish(name) {
     }
   }
 
-  renderDishes();
+  // Update the tapped card in place so the grid cascade doesn't replay on every pick
+  const isSelected = idx === -1;
+  const card = document.querySelector(`.dish-card[data-name="${(window.CSS && CSS.escape) ? CSS.escape(name) : name}"]`);
+  if (card) card.classList.toggle('selected', isSelected);
+  else renderDishes();
+
   updateSelectedSummary();
   updateCountryHeader();
   document.getElementById('btnToStep2').disabled = selectedDishes.length === 0;
@@ -1539,9 +1557,11 @@ function updateSelectedSummary() {
 
   if (selectedDishes.length === 0) {
     summary.style.display = 'none';
+    lastTagCount = 0;
     return;
   }
 
+  const grew = selectedDishes.length > lastTagCount;
   summary.style.display = 'block';
   count.textContent = selectedDishes.length;
   tags.innerHTML = selectedDishes.map((d, i) => `
@@ -1549,6 +1569,13 @@ function updateSelectedSummary() {
       <span class="tag-remove" onclick="event.stopPropagation(); removeDish(${i})">✕</span>
     </span>
   `).join('');
+
+  if (grew && tags.lastElementChild) tags.lastElementChild.classList.add('tag-new');
+  lastTagCount = selectedDishes.length;
+
+  count.classList.remove('bump');
+  void count.offsetWidth;
+  count.classList.add('bump');
 }
 
 function removeDish(i) {
@@ -1604,6 +1631,9 @@ function goToStep(step) {
       void target.offsetWidth;
       target.classList.add('active');
     }
+
+    // Tabs are only measurable once the step is laid out
+    if (step === 1) moveTabGlider();
     
     // Update navigation dots
     const sn = typeof step === 'number' ? step : 6;
@@ -2181,7 +2211,7 @@ document.documentElement.classList.add('js');
     nav.classList.toggle('scrolled', scrollY > 8);
   }, { passive: true });
 
-  const SEL = '.feature-box, .hiw-step, .cuisine-strip, .country-card, .dish-card, .store-card, .combo-card, .completion-feature';
+  const SEL = '.feature-box, .hiw-step, .cuisine-strip, .store-card, .combo-card, .completion-feature';
   const io = new IntersectionObserver(entries => {
     entries.forEach(e => {
       if (e.isIntersecting) {

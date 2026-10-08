@@ -188,13 +188,14 @@
 
             <div id="countriesView">
                 <div class="region-tabs" id="regionTabs">
-                    <button class="region-tab active" data-region="all" onclick="filterRegion('all')">🌍 All</button>
-                    <button class="region-tab" data-region="south-asian" onclick="filterRegion('south-asian')">South Asian</button>
-                    <button class="region-tab" data-region="east-asian" onclick="filterRegion('east-asian')">East & SE Asian</button>
-                    <button class="region-tab" data-region="middle-eastern" onclick="filterRegion('middle-eastern')">Middle Eastern</button>
-                    <button class="region-tab" data-region="european" onclick="filterRegion('european')">European</button>
-                    <button class="region-tab" data-region="americas" onclick="filterRegion('americas')">Americas</button>
-                    <button class="region-tab" data-region="african" onclick="filterRegion('african')">African</button>
+                    <button class="region-tab active" style="--i:0" data-region="all" onclick="filterRegion('all')">🌍 All</button>
+                    <button class="region-tab" style="--i:1" data-region="south-asian" onclick="filterRegion('south-asian')">South Asian</button>
+                    <button class="region-tab" style="--i:2" data-region="east-asian" onclick="filterRegion('east-asian')">East & SE Asian</button>
+                    <button class="region-tab" style="--i:3" data-region="middle-eastern" onclick="filterRegion('middle-eastern')">Middle Eastern</button>
+                    <button class="region-tab" style="--i:4" data-region="european" onclick="filterRegion('european')">European</button>
+                    <button class="region-tab" style="--i:5" data-region="americas" onclick="filterRegion('americas')">Americas</button>
+                    <button class="region-tab" style="--i:6" data-region="african" onclick="filterRegion('african')">African</button>
+                    <div class="tab-glider" id="tabGlider" aria-hidden="true"></div>
                 </div>
                 <div class="country-grid" id="countryGrid"></div>
             </div>

@@ -1408,6 +1408,122 @@ html.js .reveal.in {
   .people-count { font-size: 4rem; }
 }
 
+/* =========================================
+   STEP 1 — country & dish picker motion
+   ========================================= */
+
+/* Sliding pill behind the active region tab */
+.region-tabs { position: relative; }
+.tab-glider {
+  position: absolute;
+  top: 0;
+  bottom: 0.5rem;
+  left: 0;
+  width: 0;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  box-shadow: 0 6px 18px rgba(255, 143, 171, 0.35);
+  transition: transform 0.45s var(--ease), width 0.45s var(--ease);
+  pointer-events: none;
+}
+.region-tab {
+  position: relative;
+  z-index: 1;
+  animation: pillIn 0.4s var(--ease) backwards;
+  animation-delay: calc(var(--i, 0) * 45ms);
+  transition: color 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+}
+.region-tab.active {
+  background: transparent;
+  border-color: transparent;
+  color: white;
+}
+@keyframes pillIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* View switch entrance (replays whenever a view becomes visible) */
+#countriesView, #dishesView, .selected-summary {
+  animation: viewIn 0.45s var(--ease) backwards;
+}
+@keyframes viewIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Staggered card cascade on every render */
+.country-card, .dish-card {
+  animation: cardIn 0.55s var(--ease) backwards;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Emoji sit on soft gradient tiles now */
+.country-flag, .dish-emoji {
+  width: 4.5rem;
+  height: 4.5rem;
+  margin: 0 auto 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(255, 143, 171, 0.12), rgba(255, 194, 209, 0.22));
+  border-radius: 1.1rem;
+  transition: transform 0.35s var(--ease);
+}
+.country-card:hover .country-flag { transform: scale(1.1) rotate(-5deg); }
+.dish-card:hover .dish-emoji { transform: translateY(-4px) scale(1.1); }
+
+/* Selection feedback */
+.dish-card.selected {
+  box-shadow: 0 0 0 3px rgba(255, 143, 171, 0.22), 0 8px 24px rgba(255, 143, 171, 0.15);
+}
+.dish-card.selected .check-mark { animation: checkPop 0.45s var(--ease); }
+@keyframes checkPop {
+  0% { transform: scale(0); }
+  60% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+.country-badge { animation: checkPop 0.4s var(--ease); }
+
+/* Country header life */
+.current-country-flag {
+  display: inline-block;
+  transform-origin: bottom center;
+  animation: flagWave 3.5s ease-in-out infinite;
+}
+@keyframes flagWave {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-6deg); }
+}
+.stat-pill { animation: pillIn 0.35s var(--ease) backwards; }
+.stat-pill:nth-child(2) { animation-delay: 0.06s; }
+
+/* Selected-dish tags */
+.selected-tag.tag-new { animation: tagPop 0.4s var(--ease) backwards; }
+@keyframes tagPop {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
+}
+#selectedCount { display: inline-block; }
+#selectedCount.bump { animation: bump 0.4s var(--ease); }
+@keyframes bump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.4); }
+  100% { transform: scale(1); }
+}
+
+/* Search + back micro-interactions */
+.search-icon { transition: transform 0.3s var(--ease); }
+.search-box input:focus + .search-icon {
+  transform: translateY(-50%) scale(1.15) rotate(-10deg);
+}
+.back-to-countries { transition: all 0.25s var(--ease); }
+.back-to-countries:hover { transform: translateX(-3px); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001s !important;
