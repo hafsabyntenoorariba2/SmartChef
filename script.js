@@ -1339,18 +1339,25 @@ function fetchWithTimeout(url, opts = {}, ms = 6000) {
 function saveState() {
   localStorage.setItem('smartchef_dishes', JSON.stringify(selectedDishes));
   localStorage.setItem('smartchef_pantry', JSON.stringify([...haveAtHome]));
+  localStorage.setItem('smartchef_people', String(people));
 }
 
 function loadState() {
   const savedDishes = localStorage.getItem('smartchef_dishes');
   const savedPantry = localStorage.getItem('smartchef_pantry');
+  const savedPeople = parseInt(localStorage.getItem('smartchef_people'), 10);
   if (savedDishes) {
     selectedDishes = JSON.parse(savedDishes);
+    lastTagCount = selectedDishes.length; // restored tags shouldn't pop like freshly picked ones
     updateSelectedSummary();
     document.getElementById('btnToStep2').disabled = selectedDishes.length === 0;
   }
   if (savedPantry) {
     haveAtHome = new Set(JSON.parse(savedPantry));
+  }
+  if (Number.isFinite(savedPeople) && savedPeople > 0) {
+    people = Math.min(50, savedPeople);
+    document.getElementById('peopleCount').textContent = people;
   }
 }
 
@@ -1572,6 +1579,7 @@ function updateSelectedSummary() {
   }
 
   const grew = selectedDishes.length > lastTagCount;
+  const countChanged = count.textContent !== String(selectedDishes.length);
   summary.style.display = 'block';
   count.textContent = selectedDishes.length;
   tags.innerHTML = selectedDishes.map((d, i) => `
@@ -1583,9 +1591,11 @@ function updateSelectedSummary() {
   if (grew && tags.lastElementChild) tags.lastElementChild.classList.add('tag-new');
   lastTagCount = selectedDishes.length;
 
-  count.classList.remove('bump');
-  void count.offsetWidth;
-  count.classList.add('bump');
+  if (countChanged) {
+    count.classList.remove('bump');
+    void count.offsetWidth;
+    count.classList.add('bump');
+  }
 }
 
 function removeDish(i) {
@@ -1616,6 +1626,7 @@ function handleSearch() {
 function changePeople(delta) {
   people = Math.max(1, Math.min(50, people + delta));
   document.getElementById('peopleCount').textContent = people;
+  saveState();
 }
 
 function goToStep(step) {
@@ -1997,7 +2008,7 @@ function readStoreCache(key) {
   }
 }
 
-async function fetchDirectOverpass(lat, lng, radius) {
+async function queryOverpassOnce(lat, lng, radius) {
   const query = `[out:json][timeout:15];nwr["shop"~"^(supermarket|grocery)$"](around:${radius},${lat},${lng});out center 30;`;
   for (let attempt = 0; ; attempt++) {
     const res = await fetchWithTimeout('https://overpass-api.de/api/interpreter', {
@@ -2011,6 +2022,23 @@ async function fetchDirectOverpass(lat, lng, radius) {
     if (!retryable || attempt >= BACKOFF.length) throw new Error(`Overpass returned ${res.status}`);
     await new Promise(r => setTimeout(r, BACKOFF[attempt]));
   }
+}
+
+// Same sparse-area widening the backend does, so both paths report the same search radius
+async function fetchDirectOverpass(lat, lng, radius) {
+  let data = await queryOverpassOnce(lat, lng, radius);
+  let used = radius;
+  if ((data.elements || []).length < 4 && radius < 6000) {
+    used = Math.min(radius * 2, 6000);
+    try {
+      const wider = await queryOverpassOnce(lat, lng, used);
+      if ((wider.elements || []).length > (data.elements || []).length) data = wider;
+      else used = radius;
+    } catch (e) {
+      used = radius;
+    }
+  }
+  return { ...data, sc_radius: used };
 }
 
 async function fetchRealStores(lat, lng, radius = 2500) {
@@ -2234,6 +2262,7 @@ function finishShopping() {
 
 function resetAll() {
   selectedDishes = [];
+  lastTagCount = 0;
   people = 10;
   shoppingList = [];
   haveAtHome.clear();
@@ -2245,6 +2274,7 @@ function resetAll() {
 
   localStorage.removeItem('smartchef_dishes');
   localStorage.removeItem('smartchef_pantry');
+  localStorage.removeItem('smartchef_people');
 
   document.getElementById('peopleCount').textContent = '10';
   document.getElementById('searchInput').value = '';

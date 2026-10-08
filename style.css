@@ -770,52 +770,6 @@ body {
     align-items: center;
     gap: 1.25rem;
 }
-.location-icon-wrap { flex-shrink: 0; }
-.location-icon-circle {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--secondary-light), var(--secondary));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.8rem;
-    box-shadow: 0 4px 12px rgba(251,111,146,0.3);
-}
-.location-box.loading .location-icon-circle {
-    background: linear-gradient(135deg, var(--accent), var(--primary-light));
-    animation: pulseIcon 1.5s ease infinite;
-}
-.location-box.error .location-icon-circle {
-    background: linear-gradient(135deg, #FF8A80, var(--danger));
-}
-@keyframes pulseIcon {
-    0%, 100% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(0.9); opacity: 0.7; }
-}
-.location-text-wrap { flex: 1; min-width: 0; }
-.location-label {
-    font-size: 0.7rem;
-    color: var(--gray-2);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    font-weight: 700;
-    margin-bottom: 0.3rem;
-}
-.location-address {
-    font-weight: 700;
-    font-size: 1.1rem;
-    color: var(--dark);
-    line-height: 1.3;
-    word-break: break-word;
-}
-.location-box.success .location-address { color: #800F2F; }
-.location-box.error .location-address { color: var(--danger); }
-.manual-location-wrap {
-    margin-top: 1.25rem;
-    padding-top: 1.25rem;
-    border-top: 1px dashed var(--gray-3);
-}
 .manual-location-label {
     font-size: 0.85rem;
     color: var(--gray-1);
@@ -951,8 +905,6 @@ body {
   .country-flag, .dish-emoji { font-size: 2rem; }
   .country-name, .dish-name { font-size: 0.9rem; }
   .location-box { padding: 1.25rem; }
-  .location-icon-circle { width: 50px; height: 50px; font-size: 1.5rem; }
-  .location-address { font-size: 0.95rem; }
   .manual-location-row { flex-direction: column; }
   .manual-location-btn { width: 100%; }
 }
