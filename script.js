@@ -1328,6 +1328,14 @@ let lastTagCount = 0;
 // Follow the page's own host so phones on the LAN reach the backend too (localhost would point at the phone)
 const API_BASE = `${location.protocol}//${location.hostname}:3000`;
 
+// Some networks silently drop packets to port 3000 instead of refusing them; without a
+// timeout the backend attempt would hang forever and the direct fallback would never run.
+// AbortSignal.timeout is a native timer, so it fires even when JS timers are throttled.
+function fetchWithTimeout(url, opts = {}, ms = 6000) {
+  const signal = typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(ms) : undefined;
+  return fetch(url, signal ? { ...opts, signal } : opts);
+}
+
 function saveState() {
   localStorage.setItem('smartchef_dishes', JSON.stringify(selectedDishes));
   localStorage.setItem('smartchef_pantry', JSON.stringify([...haveAtHome]));
@@ -1755,12 +1763,12 @@ function findStores() {
 // can't be reached — e.g. a phone on a network that can't see this computer's port 3000.
 async function geocode(query) {
   try {
-    const res = await fetch(`${API_BASE}/api/geocode?q=${encodeURIComponent(query)}`);
+    const res = await fetchWithTimeout(`${API_BASE}/api/geocode?q=${encodeURIComponent(query)}`, {}, 6000);
     if (!res.ok) throw new Error(`Backend geocode returned ${res.status}`);
     return await res.json();
   } catch (err) {
     console.warn('Backend geocode unavailable, using direct Nominatim:', err.message);
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(query)}&limit=1&accept-language=en`);
+    const res = await fetchWithTimeout(`https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(query)}&limit=1&accept-language=en`, {}, 10000);
     if (!res.ok) throw new Error(`Direct geocode returned ${res.status}`);
     return await res.json();
   }
@@ -1803,7 +1811,7 @@ async function searchManualLocation() {
     console.error(err);
     errorEl.textContent = 'Location search failed — check your internet connection and try again.';
     errorEl.style.display = 'block';
-    setLocationState('error', '⚠️ Search Failed', 'Neither the local server nor OpenStreetMap answered');
+    setLocationState('error', '⚠️ Search Failed', `Neither the local server nor OpenStreetMap answered (${err.message})`);
   } finally {
     btn.disabled = false;
     btn.textContent = 'Find Stores';
@@ -1906,7 +1914,7 @@ async function processLocation(lat, lng, needed, source, customName) {
     }
   } catch (err) {
     console.error('Store fetch error:', err);
-    setLocationState('error', 'Network error', 'Could not reach the store database. Check your internet connection.');
+    setLocationState('error', 'Network error', `Could not reach the store database (${err.message}). Check your internet connection.`);
     document.getElementById('storeAnalysis').innerHTML = `
       <div class="no-stores-msg">
         <div class="no-stores-emoji">📡</div>
@@ -1944,12 +1952,12 @@ function setLocationState(state, labelOrIcon, addressOrLabel, detail) {
 
 async function reverseGeocode(lat, lng) {
   try {
-    const res = await fetch(`${API_BASE}/api/reverse?lat=${lat}&lon=${lng}`);
+    const res = await fetchWithTimeout(`${API_BASE}/api/reverse?lat=${lat}&lon=${lng}`, {}, 6000);
     if (!res.ok) throw new Error(`Backend reverse returned ${res.status}`);
     return await res.json();
   } catch (err) {
     console.warn('Backend reverse unavailable, using direct Nominatim:', err.message);
-    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1&accept-language=en`);
+    const res = await fetchWithTimeout(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1&accept-language=en`, {}, 10000);
     if (!res.ok) throw new Error(`Direct reverse returned ${res.status}`);
     return await res.json();
   }
@@ -1977,14 +1985,26 @@ async function getAddressName(lat, lng) {
   }
 }
 
+function readStoreCache(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !parsed.data || Date.now() - parsed.t > 30 * 60 * 1000) return null;
+    return parsed.data;
+  } catch (e) {
+    return null;
+  }
+}
+
 async function fetchDirectOverpass(lat, lng, radius) {
   const query = `[out:json][timeout:15];nwr["shop"~"^(supermarket|grocery)$"](around:${radius},${lat},${lng});out center 30;`;
   for (let attempt = 0; ; attempt++) {
-    const res = await fetch('https://overpass-api.de/api/interpreter', {
+    const res = await fetchWithTimeout('https://overpass-api.de/api/interpreter', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: `data=${encodeURIComponent(query)}`
-    });
+    }, 20000);
     if (res.ok) return await res.json();
     const retryable = res.status === 429 || res.status === 503 || res.status === 504;
     const BACKOFF = [4000, 9000];
@@ -1994,18 +2014,27 @@ async function fetchDirectOverpass(lat, lng, radius) {
 }
 
 async function fetchRealStores(lat, lng, radius = 2500) {
+  const cacheKey = `sc_stores_${lat.toFixed(3)},${lng.toFixed(3)},${radius}`;
   let data;
   try {
-    const res = await fetch(`${API_BASE}/api/stores`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lat, lng, radius })
-    });
-    if (!res.ok) throw new Error(`Server returned ${res.status}`);
-    data = await res.json();
+    try {
+      const res = await fetchWithTimeout(`${API_BASE}/api/stores`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lat, lng, radius })
+      }, 8000);
+      if (!res.ok) throw new Error(`Server returned ${res.status}`);
+      data = await res.json();
+    } catch (err) {
+      console.warn('Backend store fetch unavailable, using direct Overpass:', err.message);
+      data = await fetchDirectOverpass(lat, lng, radius);
+    }
+    try { localStorage.setItem(cacheKey, JSON.stringify({ t: Date.now(), data })); } catch (e) { /* storage unavailable */ }
   } catch (err) {
-    console.warn('Backend store fetch unavailable, using direct Overpass:', err.message);
-    data = await fetchDirectOverpass(lat, lng, radius);
+    const stale = readStoreCache(cacheKey);
+    if (!stale) throw err;
+    console.warn('Overpass unreachable, serving stores cached on this device:', err.message);
+    data = stale;
   }
   lastStoreRadius = data.sc_radius || radius;
 
