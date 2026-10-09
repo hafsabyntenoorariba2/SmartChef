@@ -1,4 +1,4 @@
-// server.js - The Bridge for SmartChef
+// server.js - The Bridge for ChefVoyage
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
@@ -29,7 +29,7 @@ function withCache(key, ttl, fn) {
     return promise;
 }
 
-const NOMINATIM_HEADERS = { 'User-Agent': 'SmartChef-Local/1.0' };
+const NOMINATIM_HEADERS = { 'User-Agent': 'ChefVoyage-Local/1.0' };
 
 // --- API 1: Find Location Coordinates ---
 app.get('/api/geocode', async (req, res) => {
@@ -93,7 +93,7 @@ async function queryOverpass(lat, lng, radius) {
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
                 'Accept': '*/*',
-                'User-Agent': 'SmartChef-Local/1.0'
+                'User-Agent': 'ChefVoyage-Local/1.0'
             },
             httpAgent, httpsAgent,
             timeout: 16000
@@ -149,6 +149,6 @@ app.post('/api/stores', async (req, res) => {
 
 // Start the server
 app.listen(PORT, () => {
-    console.log(`\n✅ SmartChef Backend is LIVE at http://localhost:${PORT}`);
+    console.log(`\n✅ ChefVoyage Backend is LIVE at http://localhost:${PORT}`);
     console.log(`👉 Keep this terminal window OPEN while using the app.\n`);
 });
