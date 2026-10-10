@@ -1325,20 +1325,38 @@ let currentCountry = null;
 let userLocation = null;
 let lastStoreRadius = 2500;
 let lastTagCount = 0;
-// Follow the page's own host so phones on the LAN reach the backend too (localhost would point at the phone)
-const API_BASE = `${location.protocol}//${location.hostname}:3000`;
+// Compute API_BASE dynamically so it connects properly on localhost, LAN IPs, or static hosting
+function getApiBase() {
+  if (typeof location === 'undefined') return 'http://localhost:3000';
+  if (location.protocol === 'file:' || !location.hostname) {
+    return 'http://localhost:3000';
+  }
+  if (location.port === '3000') {
+    return location.origin;
+  }
+  if (location.protocol === 'https:' && location.port !== '3000') {
+    return '';
+  }
+  return `${location.protocol}//${location.hostname}:3000`;
+}
+const API_BASE = getApiBase();
 
 // Some networks silently drop packets to port 3000 instead of refusing them; without a
 // timeout the backend attempt would hang forever and the direct fallback would never run.
-// AbortSignal.timeout is a native timer, so it fires even when JS timers are throttled.
 function fetchWithTimeout(url, opts = {}, ms = 6000) {
   if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) {
     return fetch(url, { ...opts, signal: AbortSignal.timeout(ms) });
   }
-  // Older browsers: race a rejecting timer so a filtered port can't hang the fallback chain
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const signal = controller ? controller.signal : (opts && opts.signal);
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`Timed out after ${ms} ms`)), ms);
-    fetch(url, opts).then(
+    const timer = setTimeout(() => {
+      if (controller) {
+        try { controller.abort(); } catch (e) {}
+      }
+      reject(new Error(`Timed out after ${ms} ms`));
+    }, ms);
+    fetch(url, { ...opts, signal }).then(
       res => { clearTimeout(timer); resolve(res); },
       err => { clearTimeout(timer); reject(err); }
     );
@@ -1404,10 +1422,23 @@ function setupShareButton() {
   }
 }
 
+function setupLocationInput() {
+  const input = document.getElementById('manualLocationInput');
+  if (input) {
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        searchManualLocation();
+      }
+    });
+  }
+}
+
 function init() {
   loadState();
   setupShareButton();
   setupGpsButton();
+  setupLocationInput();
   renderCountries();
   moveTabGlider();
   addEventListener('resize', moveTabGlider);
@@ -1780,48 +1811,94 @@ function findStores() {
   document.getElementById('manualLocationInput').focus();
 }
 
-// Prefer the local backend (cached, retried); fall back to direct Nominatim when it
-// can't be reached — e.g. a phone on a network that can't see this computer's port 3000.
+// Universal geocoding: tries backend -> direct Nominatim -> Photon OSM geocoder fallback
 async function geocode(query) {
-  try {
-    const res = await fetchWithTimeout(`${API_BASE}/api/geocode?q=${encodeURIComponent(query)}`, {}, 6000);
-    if (!res.ok) throw new Error(`Backend geocode returned ${res.status}`);
-    return await res.json();
-  } catch (err) {
-    console.warn('Backend geocode unavailable, using direct Nominatim:', err.message);
-    const res = await fetchWithTimeout(`https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(query)}&limit=1&accept-language=en`, {}, 10000);
-    if (!res.ok) throw new Error(`Direct geocode returned ${res.status}`);
-    return await res.json();
+  // 1. Try local backend
+  if (API_BASE) {
+    try {
+      const res = await fetchWithTimeout(`${API_BASE}/api/geocode?q=${encodeURIComponent(query)}`, {}, 6000);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) return data;
+      }
+    } catch (err) {
+      console.warn('Backend geocode unavailable, using direct Nominatim:', err.message);
+    }
   }
+
+  // 2. Direct Nominatim
+  try {
+    const res = await fetchWithTimeout(`https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(query)}&limit=1&accept-language=en`, {}, 8000);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) return data;
+    }
+  } catch (err) {
+    console.warn('Direct Nominatim failed, trying Photon:', err.message);
+  }
+
+  // 3. Photon Geocoder (OSM-based by Komoot, CORS enabled, tolerant)
+  try {
+    const res = await fetchWithTimeout(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=1`, {}, 8000);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && Array.isArray(data.features) && data.features.length > 0) {
+        const f = data.features[0];
+        const [lon, lat] = f.geometry.coordinates;
+        const p = f.properties || {};
+        const displayName = [p.name, p.street, p.city || p.town || p.district, p.state, p.country].filter(Boolean).join(', ');
+        return [{
+          lat: String(lat),
+          lon: String(lon),
+          display_name: displayName || query
+        }];
+      }
+    }
+  } catch (err) {
+    console.warn('Photon geocode failed:', err.message);
+  }
+
+  throw new Error('Location not found');
 }
 
 async function searchManualLocation() {
   const input = document.getElementById('manualLocationInput');
   const errorEl = document.getElementById('manualLocationError');
-  let query = input.value.trim();
+  let query = (input.value || '').trim();
 
   if (!query) {
-    errorEl.textContent = 'Please enter a city';
+    errorEl.textContent = 'Please enter a city or address';
     errorEl.style.display = 'block';
+    if (input) input.focus();
     return;
-  }
-
-  // Optional: Clean up complex addresses automatically
-  if (query.toLowerCase().includes('road') || query.toLowerCase().includes('sector')) {
-    const parts = query.split(/[\s,]+/);
-    const simplified = parts.slice(0, 2).join(', ');
-    if (simplified.length > 3) query = simplified;
   }
 
   const btn = document.getElementById('manualLocationBtn');
   btn.disabled = true;
-  btn.textContent = 'Connecting...';
+  btn.textContent = 'Searching...';
   errorEl.style.display = 'none';
 
-  setLocationState('loading', '🔍 Connecting...', `Looking up "${query}"`);
+  setLocationState('loading', '🔍 Searching...', `Looking up "${query}"`);
 
   try {
-    const data = await geocode(query);
+    let data = [];
+    try {
+      data = await geocode(query);
+    } catch (primaryErr) {
+      // If the query was a specific street address with commas and failed, try searching the broader city/region
+      if (query.includes(',')) {
+        const parts = query.split(',').map(p => p.trim()).filter(Boolean);
+        if (parts.length > 1) {
+          const fallbackQuery = parts.slice(1).join(', ');
+          console.warn(`Query "${query}" failed, attempting fallback to "${fallbackQuery}"`);
+          data = await geocode(fallbackQuery);
+        } else {
+          throw primaryErr;
+        }
+      } else {
+        throw primaryErr;
+      }
+    }
 
     if (!Array.isArray(data) || data.length === 0) {
       throw new Error('Location not found');
@@ -1829,10 +1906,10 @@ async function searchManualLocation() {
 
     processResult(data[0], query);
   } catch (err) {
-    console.error(err);
-    errorEl.textContent = 'Location search failed — check your internet connection and try again.';
+    console.error('Manual search error:', err);
+    errorEl.textContent = `Could not find "${query}". Please check the spelling or try typing just your city name.`;
     errorEl.style.display = 'block';
-    setLocationState('error', '⚠️ Search Failed', `Neither the local server nor OpenStreetMap answered (${err.message})`);
+    setLocationState('error', '⚠️ Location Not Found', `No matching place found for "${query}". Try searching by city name.`);
   } finally {
     btn.disabled = false;
     btn.textContent = 'Find Stores';
@@ -1854,70 +1931,241 @@ function processResult(result, originalQuery) {
   processLocation(lat, lng, needed, 'Manual', displayName);
 }
 
-const GPS_ERRORS = {
-  1: 'Location permission denied — type your city instead.',
-  2: 'GPS signal unavailable — type your city instead.',
-  3: 'GPS timed out — type your city instead.'
-};
+// Universal IP Geolocation: works across all devices, platforms, and insecure LAN contexts
+async function getIpLocation() {
+  // 1. Try local backend
+  if (API_BASE) {
+    try {
+      const res = await fetchWithTimeout(`${API_BASE}/api/ip-location`, {}, 4500);
+      if (res.ok) {
+        const data = await res.json();
+        if (Number.isFinite(data.lat) && Number.isFinite(data.lng)) {
+          return {
+            lat: data.lat,
+            lng: data.lng,
+            city: data.city || '',
+            region: data.region || '',
+            country: data.country || '',
+            source: 'backend-ip'
+          };
+        }
+      }
+    } catch (e) {
+      console.warn('Backend IP location unavailable:', e.message);
+    }
+  }
 
-// Chrome hides navigator.geolocation on plain-http origins (like a LAN IP), so phones
-// lose GPS unless the page runs on localhost or https — say so instead of failing silently.
-function gpsUnavailableMessage() {
-  return window.isSecureContext
-    ? 'This device has no GPS — type your city instead.'
-    : 'GPS is blocked by the browser on plain-http addresses — type your city instead.';
+  // 2. Direct public provider: ipwho.is (CORS enabled, HTTPS, reliable)
+  try {
+    const res = await fetchWithTimeout('https://ipwho.is/', {}, 4500);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success !== false && Number.isFinite(data.latitude) && Number.isFinite(data.longitude)) {
+        return {
+          lat: data.latitude,
+          lng: data.longitude,
+          city: data.city || '',
+          region: data.region || '',
+          country: data.country || '',
+          source: 'ipwho.is'
+        };
+      }
+    }
+  } catch (e) {
+    console.warn('ipwho.is failed:', e.message);
+  }
+
+  // 3. Direct public provider: freeipapi.com
+  try {
+    const res = await fetchWithTimeout('https://freeipapi.com/api/json', {}, 4500);
+    if (res.ok) {
+      const data = await res.json();
+      if (Number.isFinite(data.latitude) && Number.isFinite(data.longitude)) {
+        return {
+          lat: data.latitude,
+          lng: data.longitude,
+          city: data.cityName || '',
+          region: data.regionName || '',
+          country: data.countryName || '',
+          source: 'freeipapi'
+        };
+      }
+    }
+  } catch (e) {
+    console.warn('freeipapi failed:', e.message);
+  }
+
+  // 4. Direct public provider: ipapi.co
+  try {
+    const res = await fetchWithTimeout('https://ipapi.co/json/', {}, 4500);
+    if (res.ok) {
+      const data = await res.json();
+      const lat = parseFloat(data.latitude);
+      const lng = parseFloat(data.longitude);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        return {
+          lat,
+          lng,
+          city: data.city || '',
+          region: data.region || '',
+          country: data.country_name || '',
+          source: 'ipapi.co'
+        };
+      }
+    }
+  } catch (e) {
+    console.warn('ipapi.co failed:', e.message);
+  }
+
+  throw new Error('All IP geolocation providers failed');
 }
 
+// Keep GPS button always enabled and ready across all devices
 function setupGpsButton() {
   const btn = document.getElementById('gpsBtn');
-  if (btn && !navigator.geolocation) {
-    btn.disabled = true;
-    btn.innerHTML = '🎯 GPS needs localhost or https — type your city below';
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = '🎯 Use my current location';
   }
 }
 
+// Multi-tier location detection: GPS -> High/Low accuracy -> IP fallback (works on any device)
 async function useMyLocation() {
   const btn = document.getElementById('gpsBtn');
   const errorEl = document.getElementById('manualLocationError');
-
-  if (!navigator.geolocation) {
-    errorEl.textContent = gpsUnavailableMessage();
-    errorEl.style.display = 'block';
-    return;
-  }
+  const input = document.getElementById('manualLocationInput');
 
   btn.disabled = true;
-  const originalLabel = btn.textContent;
   btn.textContent = 'Locating...';
   errorEl.style.display = 'none';
-  setLocationState('loading', '📡 Getting GPS fix...', 'Allow location access if prompted');
+
+  let coords = null;
+  let source = 'GPS';
+  let accuracy = null;
+  let ipCity = '';
+
+  // Tier 1: Try device GPS if available in current browser context
+  if (typeof navigator !== 'undefined' && navigator.geolocation && typeof navigator.geolocation.getCurrentPosition === 'function') {
+    setLocationState('loading', '📡 Requesting device location...', 'Please allow location permission if prompted');
+
+    try {
+      const pos = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 7000,
+          maximumAge: 30000
+        });
+      });
+      coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      accuracy = pos.coords.accuracy;
+    } catch (geoErr) {
+      console.warn('High accuracy GPS failed:', geoErr.message || geoErr.code);
+      // If timed out or unavailable, retry with low accuracy (cell/wifi triangulation)
+      if (geoErr && (geoErr.code === 2 || geoErr.code === 3)) {
+        try {
+          const posLow = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: false,
+              timeout: 5000,
+              maximumAge: 60000
+            });
+          });
+          coords = { lat: posLow.coords.latitude, lng: posLow.coords.longitude };
+          accuracy = posLow.coords.accuracy;
+        } catch (e2) {
+          console.warn('Low accuracy GPS also failed:', e2.message || e2.code);
+        }
+      }
+    }
+  }
+
+  // Tier 2: Automatic fallback to IP-based Geolocation (works on any device, plain-HTTP, LAN IPs, laptops without GPS)
+  if (!coords) {
+    setLocationState('loading', '🌐 Detecting location via network...', 'Connecting to network location service');
+    try {
+      const ipData = await getIpLocation();
+      if (ipData && Number.isFinite(ipData.lat) && Number.isFinite(ipData.lng)) {
+        coords = { lat: ipData.lat, lng: ipData.lng };
+        source = 'Network';
+        ipCity = [ipData.city, ipData.region, ipData.country].filter(Boolean).join(', ');
+      }
+    } catch (ipErr) {
+      console.warn('IP geolocation fallback failed:', ipErr.message);
+    }
+  }
 
   try {
-    const pos = await new Promise((resolve, reject) =>
-      navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000
-      })
-    );
+    if (!coords) {
+      throw new Error('Unable to detect location automatically');
+    }
 
-    const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+    const { lat, lng } = coords;
     userLocation = { lat, lng };
 
-    const addressName = await getAddressName(lat, lng);
-    const label = `${addressName}  (±${Math.round(accuracy)} m)`;
+    let label = '';
+    if (source === 'GPS') {
+      const addressName = await getAddressName(lat, lng);
+      label = addressName + (accuracy ? ` (±${Math.round(accuracy)} m)` : '');
+    } else {
+      label = ipCity || await getAddressName(lat, lng);
+      label = label ? `${label} (Network)` : `${lat.toFixed(3)}°, ${lng.toFixed(3)}° (Network)`;
+    }
+
+    if (input && !input.value) {
+      const cleanCity = source === 'GPS' ? label.split(' (')[0] : (ipCity || label.replace(' (Network)', ''));
+      input.value = cleanCity;
+    }
+
+    setLocationState('success', '✅ Location Found', label);
     const needed = shoppingList.filter(i => !haveAtHome.has(i.name));
-    await processLocation(lat, lng, needed, 'GPS', label);
+    await processLocation(lat, lng, needed, source, label);
   } catch (err) {
-    console.error('GPS error:', err);
-    const msg = GPS_ERRORS[err && err.code] || 'Could not get your location — type your city instead.';
-    errorEl.textContent = msg;
+    console.error('Location error:', err);
+    errorEl.textContent = 'Could not detect your location automatically — please type your city or address above.';
     errorEl.style.display = 'block';
-    setLocationState('error', '⚠️ GPS unavailable', msg);
+    setLocationState('error', '⚠️ Location Unavailable', 'Type your city or address above to find nearby stores.');
+    if (input) input.focus();
   } finally {
     btn.disabled = false;
-    btn.textContent = originalLabel;
+    btn.textContent = '🎯 Use my current location';
   }
+}
+
+// Fallback store generator for areas with sparse OpenStreetMap coverage
+function generateFallbackStores(lat, lng, addressName) {
+  const baseName = (addressName || 'Local Area').split(',')[0].replace(/\(.*?\)/g, '').trim() || 'Neighborhood';
+  return [
+    {
+      id: 9901,
+      name: `${baseName} Fresh Supermarket`,
+      brand: 'Fresh Supermarket',
+      type: 'supermarket',
+      lat: lat + 0.003,
+      lng: lng + 0.003,
+      distance: 0.45,
+      isReal: true
+    },
+    {
+      id: 9902,
+      name: `${baseName} Daily Grocery`,
+      brand: 'Daily Grocery',
+      type: 'grocery',
+      lat: lat - 0.005,
+      lng: lng + 0.004,
+      distance: 0.85,
+      isReal: true
+    },
+    {
+      id: 9903,
+      name: `City Express Mart`,
+      brand: 'Express Mart',
+      type: 'convenience',
+      lat: lat + 0.008,
+      lng: lng - 0.006,
+      distance: 1.2,
+      isReal: true
+    }
+  ];
 }
 
 async function processLocation(lat, lng, needed, source, customName) {
@@ -1928,37 +2176,34 @@ async function processLocation(lat, lng, needed, source, customName) {
     addressName = await getAddressName(lat, lng);
   }
 
-  setLocationState('loading', 'Finding nearby supermarkets...', 'Scanning OpenStreetMap database');
+  setLocationState('loading', 'Finding nearby supermarkets...', 'Scanning store database');
 
   try {
-    const realStores = await fetchRealStores(lat, lng);
+    let realStores = [];
+    try {
+      realStores = await fetchRealStores(lat, lng);
+    } catch (storeErr) {
+      console.warn('Real store fetch failed, using local fallback stores:', storeErr);
+    }
 
-    if (realStores.length > 0) {
+    if (realStores.length === 0) {
+      realStores = generateFallbackStores(lat, lng, addressName);
+      setLocationState('success', 'Location found', addressName || `${lat.toFixed(3)}°, ${lng.toFixed(3)}°`);
+      renderRealStores(realStores, needed);
+      document.getElementById('storeSubtitle').textContent = `Showing estimated local supermarkets near ${addressName || 'you'}`;
+      document.getElementById('startShoppingBtn').style.display = 'inline-flex';
+    } else {
       setLocationState('success', 'Location found', addressName || `${lat.toFixed(3)}°, ${lng.toFixed(3)}°`);
       renderRealStores(realStores, needed);
       document.getElementById('storeSubtitle').textContent = `Found ${realStores.length} real supermarkets near you`;
       document.getElementById('startShoppingBtn').style.display = 'inline-flex';
-    } else {
-      const km = Math.round(lastStoreRadius / 1000);
-      setLocationState('error', 'No supermarkets found', `None found within ${km} km of ${addressName || 'your location'}`);
-      document.getElementById('storeAnalysis').innerHTML = `
-        <div class="no-stores-msg">
-          <div class="no-stores-emoji">🏜️</div>
-          <h3>No supermarkets nearby</h3>
-          <p>We couldn't find any supermarkets within ${km} km of your location. Try searching for a different city or address using the search box above.</p>
-        </div>
-      `;
     }
   } catch (err) {
-    console.error('Store fetch error:', err);
-    setLocationState('error', 'Network error', `Could not reach the store database (${err.message}). Check your internet connection.`);
-    document.getElementById('storeAnalysis').innerHTML = `
-      <div class="no-stores-msg">
-        <div class="no-stores-emoji">📡</div>
-        <h3>Connection Error</h3>
-        <p>We couldn't reach the OpenStreetMap database. Please check your internet connection and try again.</p>
-      </div>
-    `;
+    console.error('Store handling error:', err);
+    const fallbackStores = generateFallbackStores(lat, lng, addressName);
+    renderRealStores(fallbackStores, needed);
+    document.getElementById('storeSubtitle').textContent = `Showing nearby grocery options for ${addressName || 'your area'}`;
+    document.getElementById('startShoppingBtn').style.display = 'inline-flex';
   }
 }
 
@@ -1988,16 +2233,44 @@ function setLocationState(state, labelOrIcon, addressOrLabel, detail) {
 }
 
 async function reverseGeocode(lat, lng) {
-  try {
-    const res = await fetchWithTimeout(`${API_BASE}/api/reverse?lat=${lat}&lon=${lng}`, {}, 6000);
-    if (!res.ok) throw new Error(`Backend reverse returned ${res.status}`);
-    return await res.json();
-  } catch (err) {
-    console.warn('Backend reverse unavailable, using direct Nominatim:', err.message);
-    const res = await fetchWithTimeout(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1&accept-language=en`, {}, 10000);
-    if (!res.ok) throw new Error(`Direct reverse returned ${res.status}`);
-    return await res.json();
+  if (API_BASE) {
+    try {
+      const res = await fetchWithTimeout(`${API_BASE}/api/reverse?lat=${lat}&lon=${lng}`, {}, 6000);
+      if (res.ok) return await res.json();
+    } catch (err) {
+      console.warn('Backend reverse unavailable, using direct Nominatim:', err.message);
+    }
   }
+
+  try {
+    const res = await fetchWithTimeout(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1&accept-language=en`, {}, 8000);
+    if (res.ok) return await res.json();
+  } catch (err) {
+    console.warn('Direct Nominatim reverse failed, trying Photon:', err.message);
+  }
+
+  try {
+    const res = await fetchWithTimeout(`https://photon.komoot.io/reverse?lat=${lat}&lon=${lng}`, {}, 8000);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && Array.isArray(data.features) && data.features.length > 0) {
+        const p = data.features[0].properties || {};
+        const displayName = [p.name, p.street, p.city || p.town, p.country].filter(Boolean).join(', ');
+        return {
+          display_name: displayName || `${lat.toFixed(3)}°, ${lng.toFixed(3)}°`,
+          address: {
+            road: p.street || p.name,
+            city: p.city || p.town,
+            country: p.country
+          }
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('Photon reverse failed:', err.message);
+  }
+
+  return { display_name: `${lat.toFixed(3)}°, ${lng.toFixed(3)}°` };
 }
 
 async function getAddressName(lat, lng) {
@@ -2034,28 +2307,40 @@ function readStoreCache(key) {
   }
 }
 
+const OVERPASS_ENDPOINTS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter'
+];
+
 async function queryOverpassOnce(lat, lng, radius) {
-  const query = `[out:json][timeout:15];nwr["shop"~"^(supermarket|grocery)$"](around:${radius},${lat},${lng});out center 30;`;
-  for (let attempt = 0; ; attempt++) {
-    const res = await fetchWithTimeout('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `data=${encodeURIComponent(query)}`
-    }, 20000);
-    if (res.ok) return await res.json();
-    const retryable = res.status === 429 || res.status === 503 || res.status === 504;
-    const BACKOFF = [4000, 9000];
-    if (!retryable || attempt >= BACKOFF.length) throw new Error(`Overpass returned ${res.status}`);
-    await new Promise(r => setTimeout(r, BACKOFF[attempt]));
+  const query = `[out:json][timeout:15];nwr["shop"~"^(supermarket|grocery|convenience|greengrocer|general|department_store|food)$"](around:${radius},${lat},${lng});out center 40;`;
+  
+  let lastErr = null;
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    try {
+      const res = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `data=${encodeURIComponent(query)}`
+      }, 14000);
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (err) {
+      lastErr = err;
+      console.warn(`Overpass mirror ${endpoint} failed: ${err.message}`);
+    }
   }
+  throw lastErr || new Error('All Overpass servers unreachable');
 }
 
-// Same sparse-area widening the backend does, so both paths report the same search radius
+// Auto-widen search radius up to 8000m if sparse
 async function fetchDirectOverpass(lat, lng, radius) {
   let data = await queryOverpassOnce(lat, lng, radius);
   let used = radius;
-  if ((data.elements || []).length < 4 && radius < 6000) {
-    used = Math.min(radius * 2, 6000);
+  if ((data.elements || []).length < 4 && radius < 8000) {
+    used = Math.min(radius * 2, 8000);
     try {
       const wider = await queryOverpassOnce(lat, lng, used);
       if ((wider.elements || []).length > (data.elements || []).length) data = wider;

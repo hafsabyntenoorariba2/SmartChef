@@ -272,7 +272,7 @@
             <div class="location-box" id="locationBox">
                 <div class="manual-location-label" style="margin-bottom: 0.5rem; font-size: 1rem;">📍 Type your city or address:</div>
                 <div class="manual-location-row">
-                    <input type="text" id="manualLocationInput" placeholder="e.g., Dhaka, Bangladesh or 123 Main St, New York">
+                    <input type="text" id="manualLocationInput" placeholder="e.g., Dhaka, Bangladesh or 123 Main St, New York" autocomplete="off" enterkeyhint="search">
                     <button class="manual-location-btn" id="manualLocationBtn" onclick="searchManualLocation()">Find Stores</button>
                 </div>
                 <div class="location-or"><span>or</span></div>
@@ -361,6 +361,6 @@
     </footer>
 
     <!-- THIS LINE IS CRITICAL: It connects your massive JS file -->
-    <script src="script.js?v=5"></script>
+    <script src="script.js?v=6"></script>
 </body>
 </html>

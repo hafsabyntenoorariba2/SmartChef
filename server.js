@@ -4,13 +4,18 @@ const cors = require('cors');
 const axios = require('axios');
 const http = require('http');
 const https = require('https');
+const os = require('os');
+const path = require('path');
 
 const app = express();
-const PORT = 3000; // This is where your browser will talk to us
+const PORT = 3000;
 
-// Allow your frontend (localhost:5500) to connect
+// Allow cross-origin requests from frontend tools or other LAN devices
 app.use(cors()); 
 app.use(express.json());
+
+// Serve static frontend files directly so any device opening http://<ip>:3000 works out of the box
+app.use(express.static(__dirname));
 
 // Reuse TLS connections and memoize upstream answers so repeat lookups return instantly.
 const httpAgent = new http.Agent({ keepAlive: true });
@@ -31,20 +36,140 @@ function withCache(key, ttl, fn) {
 
 const NOMINATIM_HEADERS = { 'User-Agent': 'ChefVoyage-Local/1.0' };
 
+// --- API 0: IP-Based Geolocation (Universal fallback for any device & plain-HTTP) ---
+app.get('/api/ip-location', async (req, res) => {
+    const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+    const clientIp = String(rawIp).split(',')[0].trim().replace(/^::ffff:/, '');
+
+    const isPrivate = !clientIp ||
+        clientIp === '127.0.0.1' ||
+        clientIp === '::1' ||
+        clientIp.startsWith('192.168.') ||
+        clientIp.startsWith('10.') ||
+        clientIp.startsWith('172.16.') ||
+        clientIp.startsWith('172.17.') ||
+        clientIp.startsWith('172.18.') ||
+        clientIp.startsWith('172.19.') ||
+        clientIp.startsWith('172.2') ||
+        clientIp.startsWith('172.3');
+
+    // If client has a public IP, query it; if private (LAN/localhost), geolocate server's public IP
+    const queryIp = isPrivate ? '' : clientIp;
+
+    try {
+        const data = await withCache(`ip:${queryIp || 'self'}`, CACHE_TTL, async () => {
+            // Provider 1: ipwho.is
+            try {
+                const targetUrl = queryIp ? `https://ipwho.is/${encodeURIComponent(queryIp)}` : 'https://ipwho.is/';
+                const r = await axios.get(targetUrl, { httpAgent, httpsAgent, timeout: 6000 });
+                if (r.data && r.data.success !== false && Number.isFinite(r.data.latitude) && Number.isFinite(r.data.longitude)) {
+                    return {
+                        lat: r.data.latitude,
+                        lng: r.data.longitude,
+                        city: r.data.city || '',
+                        region: r.data.region || '',
+                        country: r.data.country || '',
+                        source: 'ip'
+                    };
+                }
+            } catch (e1) {
+                console.warn('Backend ipwho.is failed, trying freeipapi:', e1.message);
+            }
+
+            // Provider 2: freeipapi.com
+            try {
+                const targetUrl = queryIp ? `https://freeipapi.com/api/json/${encodeURIComponent(queryIp)}` : 'https://freeipapi.com/api/json';
+                const r = await axios.get(targetUrl, { httpAgent, httpsAgent, timeout: 6000 });
+                if (r.data && Number.isFinite(r.data.latitude) && Number.isFinite(r.data.longitude)) {
+                    return {
+                        lat: r.data.latitude,
+                        lng: r.data.longitude,
+                        city: r.data.cityName || '',
+                        region: r.data.regionName || '',
+                        country: r.data.countryName || '',
+                        source: 'ip'
+                    };
+                }
+            } catch (e2) {
+                console.warn('Backend freeipapi failed, trying ipapi.co:', e2.message);
+            }
+
+            // Provider 3: ipapi.co
+            const targetUrl = queryIp ? `https://ipapi.co/${encodeURIComponent(queryIp)}/json/` : 'https://ipapi.co/json/';
+            const r = await axios.get(targetUrl, {
+                headers: NOMINATIM_HEADERS,
+                httpAgent, httpsAgent,
+                timeout: 6000
+            });
+            const lat = parseFloat(r.data?.latitude);
+            const lng = parseFloat(r.data?.longitude);
+            if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                return {
+                    lat,
+                    lng,
+                    city: r.data.city || '',
+                    region: r.data.region || '',
+                    country: r.data.country_name || '',
+                    source: 'ip'
+                };
+            }
+
+            throw new Error('All IP services failed');
+        });
+
+        res.json(data);
+    } catch (err) {
+        console.error('IP Geolocation Error:', err.message);
+        res.status(500).json({ error: 'Could not determine IP location' });
+    }
+});
+
 // --- API 1: Find Location Coordinates ---
 app.get('/api/geocode', async (req, res) => {
     const query = (req.query.q || '').trim();
     if (!query) return res.status(400).json({ error: 'Missing city name' });
 
     try {
-        const data = await withCache(`geo:${query.toLowerCase()}`, CACHE_TTL, () =>
-            axios.get('https://nominatim.openstreetmap.org/search', {
-                params: { format: 'jsonv2', q: query, limit: 1, 'accept-language': 'en' },
-                headers: NOMINATIM_HEADERS,
-                httpAgent, httpsAgent,
-                timeout: 10000
-            }).then(r => r.data)
-        );
+        const data = await withCache(`geo:${query.toLowerCase()}`, CACHE_TTL, async () => {
+            // Attempt 1: Nominatim
+            try {
+                const r = await axios.get('https://nominatim.openstreetmap.org/search', {
+                    params: { format: 'jsonv2', q: query, limit: 1, 'accept-language': 'en' },
+                    headers: NOMINATIM_HEADERS,
+                    httpAgent, httpsAgent,
+                    timeout: 8000
+                });
+                if (Array.isArray(r.data) && r.data.length > 0) {
+                    return r.data;
+                }
+            } catch (e) {
+                console.warn('Backend Nominatim geocode failed, trying Photon:', e.message);
+            }
+
+            // Attempt 2: Photon OSM geocoder (tolerant, fast fallback)
+            try {
+                const pRes = await axios.get('https://photon.komoot.io/api/', {
+                    params: { q: query, limit: 1 },
+                    httpAgent, httpsAgent,
+                    timeout: 8000
+                });
+                if (pRes.data?.features?.length > 0) {
+                    const f = pRes.data.features[0];
+                    const [lon, lat] = f.geometry.coordinates;
+                    const p = f.properties || {};
+                    const name = [p.name, p.street, p.city || p.town || p.district, p.state, p.country].filter(Boolean).join(', ');
+                    return [{ lat: String(lat), lon: String(lon), display_name: name || query }];
+                }
+            } catch (pErr) {
+                console.warn('Backend Photon geocode failed:', pErr.message);
+            }
+
+            return [];
+        });
+
+        if (!data || data.length === 0) {
+            return res.status(404).json({ error: 'Location not found' });
+        }
         res.json(data);
     } catch (error) {
         console.error("Geocode Error:", error.message);
@@ -61,14 +186,41 @@ app.get('/api/reverse', async (req, res) => {
     }
 
     try {
-        const data = await withCache(`rev:${lat.toFixed(4)},${lon.toFixed(4)}`, CACHE_TTL, () =>
-            axios.get('https://nominatim.openstreetmap.org/reverse', {
-                params: { format: 'jsonv2', lat, lon, zoom: 16, addressdetails: 1, 'accept-language': 'en' },
-                headers: NOMINATIM_HEADERS,
-                httpAgent, httpsAgent,
-                timeout: 10000
-            }).then(r => r.data)
-        );
+        const data = await withCache(`rev:${lat.toFixed(4)},${lon.toFixed(4)}`, CACHE_TTL, async () => {
+            // Attempt 1: Nominatim
+            try {
+                const r = await axios.get('https://nominatim.openstreetmap.org/reverse', {
+                    params: { format: 'jsonv2', lat, lon, zoom: 16, addressdetails: 1, 'accept-language': 'en' },
+                    headers: NOMINATIM_HEADERS,
+                    httpAgent, httpsAgent,
+                    timeout: 8000
+                });
+                if (r.data) return r.data;
+            } catch (e) {
+                console.warn('Backend Nominatim reverse failed, trying Photon:', e.message);
+            }
+
+            // Attempt 2: Photon reverse
+            try {
+                const pRes = await axios.get('https://photon.komoot.io/reverse', {
+                    params: { lat, lon },
+                    httpAgent, httpsAgent,
+                    timeout: 8000
+                });
+                if (pRes.data?.features?.length > 0) {
+                    const p = pRes.data.features[0].properties || {};
+                    const name = [p.name, p.street, p.city || p.town, p.country].filter(Boolean).join(', ');
+                    return {
+                        display_name: name || `${lat.toFixed(3)}°, ${lon.toFixed(3)}°`,
+                        address: { road: p.street || p.name, city: p.city || p.town, country: p.country }
+                    };
+                }
+            } catch (pErr) {
+                console.warn('Backend Photon reverse failed:', pErr.message);
+            }
+
+            return { display_name: `${lat.toFixed(3)}°, ${lon.toFixed(3)}°` };
+        });
         res.json(data);
     } catch (error) {
         console.error("Reverse Geocode Error:", error.message);
@@ -77,29 +229,46 @@ app.get('/api/reverse', async (req, res) => {
 });
 
 // --- API 2: Find Real Stores Nearby ---
-const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+const OVERPASS_ENDPOINTS = [
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://maps.mail.ru/osm/tools/overpass/api/interpreter'
+];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const MAX_RADIUS = 6000;
+const MAX_RADIUS = 8000;
 
 function buildOverpassQuery(lat, lng, radius) {
-    return `[out:json][timeout:15];nwr["shop"~"^(supermarket|grocery)$"](around:${radius},${lat},${lng});out center 30;`;
+    return `[out:json][timeout:15];nwr["shop"~"^(supermarket|grocery|convenience|greengrocer|general|department_store|food)$"](around:${radius},${lat},${lng});out center 40;`;
 }
 
 async function queryOverpass(lat, lng, radius) {
-    const response = await axios.post(
-        OVERPASS_URL,
-        `data=${encodeURIComponent(buildOverpassQuery(lat, lng, radius))}`,
-        {
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Accept': '*/*',
-                'User-Agent': 'ChefVoyage-Local/1.0'
-            },
-            httpAgent, httpsAgent,
-            timeout: 16000
+    const postData = `data=${encodeURIComponent(buildOverpassQuery(lat, lng, radius))}`;
+    let lastError = null;
+
+    for (const endpoint of OVERPASS_ENDPOINTS) {
+        try {
+            const response = await axios.post(
+                endpoint,
+                postData,
+                {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'Accept': '*/*',
+                        'User-Agent': 'ChefVoyage-Local/1.0'
+                    },
+                    httpAgent, httpsAgent,
+                    timeout: 14000
+                }
+            );
+            if (response.data && Array.isArray(response.data.elements)) {
+                return response.data;
+            }
+        } catch (err) {
+            lastError = err;
+            console.warn(`Overpass endpoint ${endpoint} failed: ${err.message}`);
         }
-    );
-    return response.data;
+    }
+    throw lastError || new Error('All Overpass endpoints failed');
 }
 
 app.post('/api/stores', async (req, res) => {
@@ -109,8 +278,7 @@ app.post('/api/stores', async (req, res) => {
         return res.status(400).json({ error: 'lat and lng are required' });
     }
 
-    // Overpass answers 429/504 when requests arrive in a burst; it recovers after a short idle.
-    const BACKOFF_MS = [3000, 9000];
+    const BACKOFF_MS = [2000, 5000];
 
     const fetchWithRetry = async (r) => {
         for (let attempt = 0; ; attempt++) {
@@ -134,9 +302,13 @@ app.post('/api/stores', async (req, res) => {
             // Sparse area: widen once so the "nearest stores" list is actually useful.
             if ((result.elements || []).length < 4 && radius < MAX_RADIUS) {
                 usedRadius = Math.min(radius * 2, MAX_RADIUS);
-                const wider = await fetchWithRetry(usedRadius);
-                if ((wider.elements || []).length > (result.elements || []).length) result = wider;
-                else usedRadius = radius;
+                try {
+                    const wider = await fetchWithRetry(usedRadius);
+                    if ((wider.elements || []).length > (result.elements || []).length) result = wider;
+                    else usedRadius = radius;
+                } catch (wErr) {
+                    usedRadius = radius;
+                }
             }
 
             return { ...result, sc_radius: usedRadius };
@@ -147,8 +319,26 @@ app.post('/api/stores', async (req, res) => {
     }
 });
 
+// Helper to get local IP address for easy mobile testing
+function getLocalIp() {
+    try {
+        const interfaces = os.networkInterfaces();
+        for (const name of Object.keys(interfaces)) {
+            for (const iface of interfaces[name] || []) {
+                if (iface.family === 'IPv4' && !iface.internal) {
+                    return iface.address;
+                }
+            }
+        }
+    } catch (e) {}
+    return 'localhost';
+}
+
 // Start the server
 app.listen(PORT, () => {
-    console.log(`\n✅ ChefVoyage Backend is LIVE at http://localhost:${PORT}`);
+    const localIp = getLocalIp();
+    console.log(`\n✅ ChefVoyage Backend is LIVE!`);
+    console.log(`💻 On this computer:  http://localhost:${PORT}`);
+    console.log(`📱 On phones/devices: http://${localIp}:${PORT}`);
     console.log(`👉 Keep this terminal window OPEN while using the app.\n`);
 });
