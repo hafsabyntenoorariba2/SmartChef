@@ -2,177 +2,307 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChefVoyage — World Cuisine Shopping Assistant</title>
-    <meta name="description" content="ChefVoyage merges the ingredient lists of dishes from 50+ world cuisines, scales portions to your guest count, and finds real supermarkets near you that stock them.">
-    <meta name="theme-color" content="#FF8FAB">
-    <link rel="icon" type="image/png" href="assets/logo.png">
-    <link rel="apple-touch-icon" href="assets/logo.png">
-    <!-- THIS LINE IS CRITICAL: It connects your beautiful CSS -->
-    <link rel="stylesheet" href="style.css?v=5">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>ChefVoyage — Recipes and Meal Planner</title>
+    <meta name="description" content="ChefVoyage gives every dish a detailed authentic recipe, then scales the ingredients for your guests and builds one shopping list.">
+    <meta name="theme-color" content="#FFF5F8" id="metaThemeColor">
+    <meta name="color-scheme" content="light dark">
+    <link rel="icon" type="image/png" href="assets/logo-64.png">
+    <link rel="apple-touch-icon" href="assets/logo-192.png">
+
+    <!-- Apply the saved/system theme before first paint so there is no light-to-dark flash -->
+    <script>
+        (function () {
+            var root = document.documentElement;
+            root.classList.add('js');
+            try {
+                var t = localStorage.getItem('chefvoyage_theme');
+                if (!t && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) t = 'dark';
+                if (t) root.dataset.theme = t;
+            } catch (e) {}
+        })();
+    </script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=13">
 </head>
 <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <!-- Ambient animated background (pure CSS, GPU-only transforms) -->
+    <div class="bg-aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="bg-grid" aria-hidden="true"></div>
+    <div class="bg-food" aria-hidden="true">
+        <span style="--x:3%;--d:12s;--delay:-1s;--s:1.7rem;--drift:28px;--spin:160deg;--o:.34">🍚</span>
+        <span style="--x:11%;--d:16s;--delay:-9s;--s:2.1rem;--drift:-36px;--spin:-200deg;--o:.28">🍣</span>
+        <span style="--x:19%;--d:11s;--delay:-4s;--s:1.5rem;--drift:18px;--spin:120deg;--o:.4">🌶️</span>
+        <span style="--x:27%;--d:18s;--delay:-12s;--s:2.4rem;--drift:-22px;--spin:220deg;--o:.26">🍋</span>
+        <span style="--x:35%;--d:13s;--delay:-6s;--s:1.8rem;--drift:40px;--spin:-140deg;--o:.32">🍅</span>
+        <span style="--x:43%;--d:15s;--delay:-2s;--s:2rem;--drift:-16px;--spin:180deg;--o:.3">🥟</span>
+        <span style="--x:51%;--d:10.5s;--delay:-8s;--s:1.6rem;--drift:24px;--spin:-90deg;--o:.38">🥐</span>
+        <span style="--x:59%;--d:17s;--delay:-14s;--s:2.3rem;--drift:-30px;--spin:250deg;--o:.24">🍜</span>
+        <span style="--x:67%;--d:12.5s;--delay:-3s;--s:1.9rem;--drift:14px;--spin:-180deg;--o:.36">🌮</span>
+        <span style="--x:75%;--d:14s;--delay:-10s;--s:1.55rem;--drift:-26px;--spin:100deg;--o:.3">🧅</span>
+        <span style="--x:83%;--d:19s;--delay:-5s;--s:2.2rem;--drift:32px;--spin:-210deg;--o:.26">🍖</span>
+        <span style="--x:91%;--d:11.5s;--delay:-7s;--s:1.7rem;--drift:-12px;--spin:150deg;--o:.38">🥑</span>
+        <span style="--x:7%;--d:15.5s;--delay:-13s;--s:1.45rem;--drift:20px;--spin:-70deg;--o:.28">🧀</span>
+        <span style="--x:48%;--d:13.5s;--delay:-11s;--s:2.05rem;--drift:-34px;--spin:190deg;--o:.3">🍝</span>
+        <span style="--x:70%;--d:16.5s;--delay:-1.5s;--s:1.65rem;--drift:18px;--spin:-160deg;--o:.34">🍤</span>
+        <span style="--x:86%;--d:12s;--delay:-15s;--s:2rem;--drift:-20px;--spin:130deg;--o:.27">🍛</span>
+    </div>
 
     <!-- Navigation Bar -->
-    <nav class="nav">
-        <div class="nav-logo">
-            <img src="assets/logo.png" alt="" class="nav-logo-img"> ChefVoyage
+    <nav class="nav" aria-label="ChefVoyage progress">
+        <button class="brand" id="navLogo" type="button" aria-label="ChefVoyage — back to the start">
+            <span class="brand-mark"><img src="assets/logo-64.png" alt="" width="40" height="40"></span>
+            <span class="brand-name">ChefVoyage</span>
+        </button>
+        <div class="nav-right">
+            <button type="button" class="nav-search" id="navSearch" aria-label="Quick search (Ctrl or Command + K)">
+                <span aria-hidden="true">🔍</span><span class="nav-search-label">Search</span><kbd id="kbdHint">⌘K</kbd>
+            </button>
+            <div class="nav-steps" id="navSteps">
+                <button type="button" class="nav-step-dot active" data-step="0" aria-label="Step 1: Welcome"></button>
+                <div class="nav-step-line"></div>
+                <button type="button" class="nav-step-dot" data-step="1" aria-label="Step 2: Choose dishes"></button>
+                <div class="nav-step-line"></div>
+                <button type="button" class="nav-step-dot" data-step="2" aria-label="Step 3: Guests"></button>
+                <div class="nav-step-line"></div>
+                <button type="button" class="nav-step-dot" data-step="3" aria-label="Step 4: Shopping list"></button>
+                <div class="nav-step-line"></div>
+                <button type="button" class="nav-step-dot" data-step="4" aria-label="Step 5: Stores"></button>
+                <div class="nav-step-line"></div>
+                <button type="button" class="nav-step-dot" data-step="5" aria-label="Step 6: Checklist"></button>
+            </div>
+            <button type="button" class="theme-toggle" id="themeToggle" aria-label="Switch to dark mode" title="Toggle light / dark">
+                <span class="tt-icon tt-sun" aria-hidden="true">☀️</span>
+                <span class="tt-icon tt-moon" aria-hidden="true">🌙</span>
+            </button>
         </div>
-        <div class="nav-steps" id="navSteps">
-            <div class="nav-step-dot active" data-step="0"></div>
-            <div class="nav-step-line"></div>
-            <div class="nav-step-dot" data-step="1"></div>
-            <div class="nav-step-line"></div>
-            <div class="nav-step-dot" data-step="2"></div>
-            <div class="nav-step-line"></div>
-            <div class="nav-step-dot" data-step="3"></div>
-            <div class="nav-step-line"></div>
-            <div class="nav-step-dot" data-step="4"></div>
-            <div class="nav-step-line"></div>
-            <div class="nav-step-dot" data-step="5"></div>
-        </div>
+        <div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
     </nav>
 
     <!-- Thinking Overlay -->
-    <div class="thinking-overlay" id="thinkingOverlay">
+    <div class="thinking-overlay" id="thinkingOverlay" role="status" aria-live="polite">
         <div class="thinking-box">
-            <div style="font-size:2.5rem">🧠</div>
-            <div class="thinking-dots">
+            <div class="thinking-orb" aria-hidden="true">🧠</div>
+            <div class="thinking-dots" aria-hidden="true">
                 <span></span><span></span><span></span>
             </div>
             <div class="thinking-text" id="thinkingText">Analyzing recipes...</div>
             <div class="thinking-sub" id="thinkingSub">Combining ingredients for your meals</div>
+            <div class="thinking-bar" aria-hidden="true"><div class="thinking-bar-fill" id="thinkingBar"></div></div>
         </div>
     </div>
 
-    <div class="main">
+    <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+    <canvas id="confetti" aria-hidden="true"></canvas>
 
-        <!-- STEP 0: NEW SPLIT-SCREEN HERO -->
-        <section class="step-section active hero-split" id="step0">
+    <!-- Dish preview modal -->
+    <div class="modal" id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="modal-backdrop" data-close></div>
+        <div class="modal-card" id="modalCard"></div>
+    </div>
+
+    <!-- Quick-search command palette -->
+    <div class="modal palette" id="palette" hidden role="dialog" aria-modal="true" aria-label="Quick search">
+        <div class="modal-backdrop" data-close></div>
+        <div class="palette-card">
+            <div class="palette-input">
+                <span aria-hidden="true">🔍</span>
+                <input id="paletteInput" type="text" placeholder="Search any country or dish…" autocomplete="off" spellcheck="false" aria-label="Search any country or dish" role="combobox" aria-expanded="true" aria-controls="paletteList">
+                <kbd>esc</kbd>
+            </div>
+            <div class="palette-list" id="paletteList" role="listbox"></div>
+            <div class="palette-foot"><span><kbd>↑</kbd><kbd>↓</kbd> navigate</span><span><kbd>↵</kbd> select</span><span><kbd>esc</kbd> close</span></div>
+        </div>
+    </div>
+
+    <button type="button" class="to-top" id="toTop" aria-label="Back to top" hidden>↑</button>
+
+    <main class="main" id="main">
+
+        <!-- STEP 0: SPLIT-SCREEN HERO -->
+        <section class="step-section active hero-split" id="step0" aria-label="Welcome">
+            <div class="resume-banner" id="resumeBanner" hidden>
+                <span class="resume-emoji" aria-hidden="true">👋</span>
+                <span class="resume-text" id="resumeText">Welcome back!</span>
+                <button type="button" class="btn btn-primary btn-sm" onclick="goToStep(1)">Continue planning</button>
+                <button type="button" class="resume-dismiss" onclick="startFresh()">Start fresh</button>
+            </div>
             <div class="hero-container">
                 <!-- Left Side: Content -->
                 <div class="hero-content">
-                    <div class="hero-badge">🌍 World Cuisine Explorer</div>
+                    <div class="hero-badge"><span class="badge-dot" aria-hidden="true"></span> Detailed recipes included</div>
                     <h1>Don't just cook.<br><span class="highlight-gradient">Curate your meal.</span></h1>
+                    <div class="hero-rotator" aria-hidden="true">Tonight's plan: <span class="rot-word" id="rotWord"></span><span class="rot-caret"></span></div>
                     <p class="hero-sub">
-                        Stop guessing ingredients. Select dishes from Bangladesh, Japan, Italy, and more. 
-                        We'll merge the shopping lists, scale portions for your family, and find the best local stores.
+                        Choose a dish from Bangladesh, Japan, Italy and forty more countries.
+                        Open <strong>How to cook it</strong> for a full authentic recipe, then scale the ingredients and shop from one merged list.
                     </p>
-                    
-                    <!-- Trust/Stats Row -->
+
                     <div class="hero-stats">
                         <div class="stat-item">
-                            <span class="stat-num">50+</span>
-                            <span class="stat-label">Cuisines</span>
+                            <span class="stat-num"><span data-count="43" id="statCountries">43</span></span>
+                            <span class="stat-label">Countries</span>
                         </div>
                         <div class="stat-divider"></div>
                         <div class="stat-item">
-                            <span class="stat-num">100%</span>
+                            <span class="stat-num"><span data-count="444" id="statDishes">444</span></span>
+                            <span class="stat-label">Recipes</span>
+                        </div>
+                        <div class="stat-divider"></div>
+                        <div class="stat-item">
+                            <span class="stat-num"><span data-count="100">100</span>%</span>
                             <span class="stat-label">Free</span>
-                        </div>
-                        <div class="stat-divider"></div>
-                        <div class="stat-item">
-                            <span class="stat-num">Real</span>
-                            <span class="stat-label">Local Stores</span>
                         </div>
                     </div>
 
-                    <div class="btn-row hero-btns">
-                        <button class="btn btn-primary btn-lg" onclick="goToStep(1)">
-                            Start Planning 🍳
+                    <div class="hero-cta">
+                        <button class="btn btn-primary btn-lg" type="button" onclick="goToStep(1)">
+                            Start Planning <span aria-hidden="true">🍳</span>
                         </button>
-                        <div class="hero-note">No account required</div>
+                        <span class="hero-note-inline">No account required</span>
                     </div>
                 </div>
 
                 <!-- Right Side: Visual Collage -->
-                <div class="hero-visuals">
-                    <div class="visual-card main-card">
-                        <img src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80" alt="Healthy Bowl">
+                <div class="hero-visuals" id="heroVisuals">
+                    <div class="hero-glow" aria-hidden="true"></div>
+                    <div class="visual-card main-card" style="--depth:14">
+                        <img src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=75" alt="A fresh healthy bowl" width="800" height="1000" fetchpriority="high" decoding="async" onerror="this.style.display='none'">
                         <div class="card-float float-1">
                             <span class="float-icon">🥑</span>
-                            <span class="float-text">Fresh Ingredients</span>
+                            <span class="float-text">Full recipes</span>
                         </div>
                     </div>
-                    <div class="visual-card sub-card">
-                        <img src="https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=400&q=80" alt="Pizza">
+                    <div class="visual-card sub-card" style="--depth:-18">
+                        <img src="https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=400&q=75" alt="Pizza" width="400" height="400" loading="lazy" decoding="async" onerror="this.style.display='none'">
                     </div>
-                    <div class="visual-card sub-card sub-card-2">
-                        <img src="https://images.unsplash.com/photo-1563379926898-05f4575a45d8?auto=format&fit=crop&w=400&q=80" alt="Pasta">
+                    <div class="visual-card sub-card sub-card-2" style="--depth:-10">
+                        <img src="https://images.unsplash.com/photo-1563379926898-05f4575a45d8?auto=format&fit=crop&w=400&q=75" alt="Pasta" width="400" height="400" loading="lazy" decoding="async" onerror="this.style.display='none'">
                     </div>
+                    <div class="orbit-chip orbit-1" aria-hidden="true">🌶️</div>
+                    <div class="orbit-chip orbit-2" aria-hidden="true">🍣</div>
+                    <div class="orbit-chip orbit-3" aria-hidden="true">🌮</div>
                 </div>
             </div>
 
-            <!-- Feature Grid (Fills out the page) -->
+            <!-- Feature Grid -->
             <div class="feature-grid">
-                <div class="feature-box">
+                <div class="feature-box tilt" data-tilt>
+                    <div class="fb-icon">📖</div>
+                    <h3>Detailed recipes</h3>
+                    <p>Every dish has a full method. Press How to cook it and cook from steps written for that dish's own ingredients.</p>
+                </div>
+                <div class="feature-box tilt" data-tilt>
                     <div class="fb-icon">🧠</div>
                     <h3>Smart Merging</h3>
                     <p>Pick Butter Chicken AND Naan? We combine the garlic and cream so you don't buy double.</p>
                 </div>
-                <div class="feature-box">
-                    <div class="fb-icon">️</div>
+                <div class="feature-box tilt" data-tilt>
+                    <div class="fb-icon">⚖️</div>
                     <h3>Auto-Scaling</h3>
                     <p>Cooking for 2 or 20? Ingredients adjust automatically to match your guest count.</p>
                 </div>
-                <div class="feature-box">
+                <div class="feature-box tilt" data-tilt>
                     <div class="fb-icon">📍</div>
                     <h3>Real Stores</h3>
-                    <p>We don't just give you a list. We find real supermarkets near you that have these items.</p>
+                    <p>We don't just give you a list. We find real supermarkets near you that sell these items.</p>
                 </div>
             </div>
 
             <!-- How It Works -->
             <div class="how-it-works">
                 <h2 class="hiw-title">How ChefVoyage works</h2>
-                <p class="hiw-sub">Four steps from "what should we cook?" to a full basket in your hand.</p>
+                <p class="hiw-sub">Four steps from a recipe you want to cook to a basket that matches it.</p>
                 <div class="hiw-grid">
-                    <div class="hiw-step">
+                    <div class="hiw-step tilt" data-tilt>
                         <div class="hiw-num">1</div>
                         <h3>Pick your dishes</h3>
-                        <p>Browse signature dishes country by country — Bangladeshi Biryani, Japanese Sushi, Thai Pad Thai, Italian Pasta — and add as many as you like to one meal plan.</p>
+                        <p>Browse country by country — Bangladeshi Kacchi, Japanese Sushi, Thai Pad Thai, Italian Pasta — and open any dish you want on the menu.</p>
                     </div>
-                    <div class="hiw-step">
+                    <div class="hiw-step tilt" data-tilt>
                         <div class="hiw-num">2</div>
-                        <h3>Set your headcount</h3>
-                        <p>Tell us how many people are eating. Every ingredient quantity is scaled up or down to match, so nothing runs out and nothing goes to waste.</p>
+                        <h3>Read the recipe</h3>
+                        <p>How to cook it opens a detailed method for 4 people, written to match the ingredients on that dish. Follow it at the stove.</p>
                     </div>
-                    <div class="hiw-step">
+                    <div class="hiw-step tilt" data-tilt>
                         <div class="hiw-num">3</div>
-                        <h3>Get one merged list</h3>
-                        <p>Shared ingredients across dishes are combined into a single shopping list. Tick off what is already in your pantry and it drops off the list.</p>
+                        <h3>Scale for your table</h3>
+                        <p>Set how many people are eating. Every quantity grows or shrinks from the recipe's 4 servings, then shared ingredients merge into one list.</p>
                     </div>
-                    <div class="hiw-step">
+                    <div class="hiw-step tilt" data-tilt>
                         <div class="hiw-num">4</div>
                         <h3>Shop at real stores</h3>
-                        <p>Type your city or street and ChefVoyage locates real supermarkets near you from OpenStreetMap data, ranked from closest to farthest.</p>
+                        <p>Tick off what is already in the pantry. Type your city and ChefVoyage finds real supermarkets nearby, closest first.</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Cuisine examples -->
+            <!-- Featured cuisines (built from the real data in script.js) -->
+            <div class="featured">
+                <h2 class="hiw-title">Popular cuisines to start with</h2>
+                <p class="hiw-sub">Jump straight into a country. Every dish has its ingredients and a full recipe.</p>
+                <div class="featured-grid" id="featuredGrid"></div>
+            </div>
+
+            <!-- Cuisine marquee -->
             <div class="cuisine-strip">
                 <span class="cuisine-strip-label">On the menu today</span>
-                <div class="cuisine-chips">
-                    <span class="cuisine-chip">🇧🇩 Biryani</span>
-                    <span class="cuisine-chip">🇮🇳 Butter Chicken</span>
-                    <span class="cuisine-chip">🇯🇵 Sushi</span>
-                    <span class="cuisine-chip">🇰🇷 Bibimbap</span>
-                    <span class="cuisine-chip">🇹🇭 Pad Thai</span>
-                    <span class="cuisine-chip">🇱🇧 Hummus</span>
-                    <span class="cuisine-chip">🇮🇹 Pasta Carbonara</span>
-                    <span class="cuisine-chip">🇲🇽 Tacos</span>
-                    <span class="cuisine-chip">🇳🇵 Momo</span>
+                <div class="marquee" aria-label="Example dishes">
+                    <div class="marquee-track" id="marqueeTrack">
+                        <span class="cuisine-chip">🇧🇩 Kacchi Biryani</span>
+                        <span class="cuisine-chip">🇮🇳 Butter Chicken</span>
+                        <span class="cuisine-chip">🇯🇵 Sushi</span>
+                        <span class="cuisine-chip">🇰🇷 Bibimbap</span>
+                        <span class="cuisine-chip">🇹🇭 Pad Thai</span>
+                        <span class="cuisine-chip">🇱🇧 Hummus</span>
+                        <span class="cuisine-chip">🇮🇹 Pasta Carbonara</span>
+                        <span class="cuisine-chip">🇲🇽 Tacos</span>
+                        <span class="cuisine-chip">🇳🇵 Momo</span>
+                    </div>
                 </div>
-                <p class="cuisine-strip-note">...and dozens more across South Asia, East Asia, the Middle East, Europe, the Americas and Africa.</p>
+                <p class="cuisine-strip-note">...and hundreds more, each with a full recipe, across South Asia, East Asia, the Middle East, Europe, the Americas and Africa.</p>
+            </div>
+
+            <!-- FAQ -->
+            <div class="faq">
+                <h2 class="hiw-title">Good to know</h2>
+                <p class="hiw-sub">Quick answers before you start.</p>
+                <div class="faq-list">
+                    <details class="faq-item">
+                        <summary>Where is the recipe?</summary>
+                        <div class="faq-body">Open a country, then press <strong>How to cook it</strong> on any dish. The method sits at the top of the card: timing, then the steps, then the ingredient list those steps use. Recipes are written for 4 people.</div>
+                    </details>
+                    <details class="faq-item">
+                        <summary>How are quantities calculated?</summary>
+                        <div class="faq-body">Every recipe is written for 4 people. We multiply each ingredient by your guest count ÷ 4, convert mixed units (g, kg, ml, L) to one base unit, add shared ingredients together, then round to a friendly amount for shopping.</div>
+                    </details>
+                    <details class="faq-item">
+                        <summary>Can I trust the store results?</summary>
+                        <div class="faq-body">Stores come from OpenStreetMap, so they are real places — but opening hours and stock aren't verified. Use the directions button and call ahead for hard-to-find items.</div>
+                    </details>
+                    <details class="faq-item">
+                        <summary>What does “Veg-friendly” mean?</summary>
+                        <div class="faq-body">It's a quick check of the ingredient list: no meat, poultry or seafood in the recipe. It can't see hidden ingredients in store-bought sauces, so always check labels if you follow a strict diet.</div>
+                    </details>
+                    <details class="faq-item">
+                        <summary>Is my data saved or shared?</summary>
+                        <div class="faq-body">Your picks stay in this browser only (local storage) so you can come back later. Your location is only used to search for stores and is never stored on a server by ChefVoyage.</div>
+                    </details>
+                    <details class="faq-item">
+                        <summary>Any keyboard shortcuts?</summary>
+                        <div class="faq-body"><kbd class="kbd-inline">⌘/Ctrl</kbd> + <kbd class="kbd-inline">K</kbd> opens quick search for any country or dish. <kbd class="kbd-inline">/</kbd> focuses the search box and <kbd class="kbd-inline">Esc</kbd> steps back.</div>
+                    </details>
+                </div>
             </div>
         </section>
 
         <!-- STEP 1: SELECT COUNTRY → DISHES -->
-        <section class="step-section" id="step1">
+        <section class="step-section" id="step1" aria-labelledby="step1Title">
             <div class="section-header">
                 <div class="step-badge">STEP 1</div>
                 <h2 id="step1Title">Pick a Country</h2>
@@ -181,175 +311,240 @@
 
             <div class="search-filter-container">
                 <div class="search-box">
-                    <input type="text" id="searchInput" placeholder="Search countries or dishes..." oninput="handleSearch()">
-                    <span class="search-icon">🔍</span>
+                    <input type="search" id="searchInput" placeholder="Search countries or dishes...  (press / to focus)" aria-label="Search countries or dishes" autocomplete="off" oninput="handleSearch()">
+                    <span class="search-icon" aria-hidden="true">🔍</span>
+                </div>
+                <div class="quick-actions">
+                    <button type="button" class="chip" onclick="surpriseMe()">🎲 Surprise me</button>
+                    <button type="button" class="chip" onclick="openPalette()">⚡ Quick search <kbd class="kbd-inline kbd-hint">⌘K</kbd></button>
                 </div>
             </div>
 
             <div id="countriesView">
-                <div class="region-tabs" id="regionTabs">
-                    <button class="region-tab active" style="--i:0" data-region="all" onclick="filterRegion('all')">🌍 All</button>
-                    <button class="region-tab" style="--i:1" data-region="south-asian" onclick="filterRegion('south-asian')">South Asian</button>
-                    <button class="region-tab" style="--i:2" data-region="east-asian" onclick="filterRegion('east-asian')">East & SE Asian</button>
-                    <button class="region-tab" style="--i:3" data-region="middle-eastern" onclick="filterRegion('middle-eastern')">Middle Eastern</button>
-                    <button class="region-tab" style="--i:4" data-region="european" onclick="filterRegion('european')">European</button>
-                    <button class="region-tab" style="--i:5" data-region="americas" onclick="filterRegion('americas')">Americas</button>
-                    <button class="region-tab" style="--i:6" data-region="african" onclick="filterRegion('african')">African</button>
+                <div class="region-tabs" id="regionTabs" role="tablist" aria-label="Filter by region">
+                    <button class="region-tab active" type="button" style="--i:0" data-region="all" onclick="filterRegion('all')">🌍 All</button>
+                    <button class="region-tab" type="button" style="--i:1" data-region="south-asian" onclick="filterRegion('south-asian')">South Asian</button>
+                    <button class="region-tab" type="button" style="--i:2" data-region="east-asian" onclick="filterRegion('east-asian')">East &amp; SE Asian</button>
+                    <button class="region-tab" type="button" style="--i:3" data-region="middle-eastern" onclick="filterRegion('middle-eastern')">Middle Eastern</button>
+                    <button class="region-tab" type="button" style="--i:4" data-region="european" onclick="filterRegion('european')">European</button>
+                    <button class="region-tab" type="button" style="--i:5" data-region="americas" onclick="filterRegion('americas')">Americas</button>
+                    <button class="region-tab" type="button" style="--i:6" data-region="african" onclick="filterRegion('african')">African</button>
                     <div class="tab-glider" id="tabGlider" aria-hidden="true"></div>
                 </div>
                 <div class="country-grid" id="countryGrid"></div>
             </div>
 
-            <div id="dishesView" style="display:none;">
-                <button class="back-to-countries" onclick="showCountries()">← Back to Countries</button>
+            <div id="dishesView" hidden>
+                <button class="back-to-countries" type="button" onclick="showCountries()">← Back to Countries</button>
                 <div class="current-country-header" id="currentCountryHeader"></div>
+                <div class="dish-toolbar" id="dishToolbar">
+                    <button type="button" class="chip active" data-diet="all">All dishes</button>
+                    <button type="button" class="chip" data-diet="veg">🌱 Veg-friendly</button>
+                    <button type="button" class="chip" data-diet="spicy">🌶️ Spicy</button>
+                    <button type="button" class="chip chip-ghost" id="selectAllDishes">＋ Add all shown</button>
+                </div>
                 <div class="dish-grid" id="dishGrid"></div>
             </div>
 
-            <div class="selected-summary" id="selectedSummary" style="display:none;">
+            <div class="selected-summary" id="selectedSummary" hidden>
                 <div class="summary-top">
                     <h3>🍽️ Selected Dishes (<span id="selectedCount">0</span>)</h3>
-                    <button class="clear-all-btn" onclick="clearAllDishes()">Clear All</button>
+                    <div class="summary-actions">
+                        <button class="clear-all-btn" type="button" onclick="clearAllDishes()">Clear All</button>
+                        <button class="btn btn-primary btn-sm" type="button" id="btnSummaryContinue" onclick="goToStep(2)">Continue →</button>
+                    </div>
                 </div>
                 <div class="selected-tags" id="selectedTags"></div>
             </div>
 
             <div class="btn-row">
-                <button class="btn btn-secondary" onclick="goToStep(0)">← Back</button>
-                <button class="btn btn-primary" id="btnToStep2" disabled onclick="goToStep(2)">Continue →</button>
+                <button class="btn btn-secondary" type="button" onclick="goToStep(0)">← Back</button>
+                <button class="btn btn-primary" type="button" id="btnToStep2" disabled onclick="goToStep(2)">Continue →</button>
             </div>
         </section>
 
         <!-- STEP 2: PEOPLE -->
-        <section class="step-section" id="step2">
+        <section class="step-section" id="step2" aria-labelledby="step2Title">
             <div class="section-header">
                 <div class="step-badge">STEP 2</div>
-                <h2>How many people?</h2>
+                <h2 id="step2Title">How many people?</h2>
                 <p>We'll adjust ingredient quantities for you</p>
             </div>
-            <div class="people-selector">
-                <button class="people-btn" onclick="changePeople(-1)">−</button>
-                <div class="people-count" id="peopleCount">10</div>
-                <button class="people-btn" onclick="changePeople(1)">+</button>
+            <div class="people-card">
+                <div class="people-selector">
+                    <button class="people-btn" type="button" onclick="changePeople(-1)" aria-label="Fewer people">−</button>
+                    <div class="people-count" id="peopleCount" aria-live="polite">10</div>
+                    <button class="people-btn" type="button" onclick="changePeople(1)" aria-label="More people">+</button>
+                </div>
+                <div class="people-label">people</div>
+                <input type="range" class="people-range" id="peopleRange" min="1" max="50" value="10" aria-label="Number of people" oninput="setPeople(+this.value)">
+                <div class="people-presets" id="peoplePresets">
+                    <button type="button" class="chip" data-n="2">2</button>
+                    <button type="button" class="chip" data-n="4">4</button>
+                    <button type="button" class="chip" data-n="6">6</button>
+                    <button type="button" class="chip" data-n="10">10</button>
+                    <button type="button" class="chip" data-n="20">20</button>
+                    <button type="button" class="chip" data-n="30">30</button>
+                </div>
+                <p class="people-scale" id="peopleScale"></p>
             </div>
-            <div class="people-label">people</div>
+            <div class="menu-panel" id="menuPanel">
+                <div class="menu-panel-head">
+                    <h3>📋 Your menu</h3>
+                    <button type="button" class="link-btn" onclick="goToStep(1)">＋ Add more dishes</button>
+                </div>
+                <div class="selected-tags" id="menuTags"></div>
+            </div>
             <div class="btn-row">
-                <button class="btn btn-secondary" onclick="goToStep(1)">← Back</button>
-                <button class="btn btn-primary" onclick="generateList()">Generate Shopping List →</button>
+                <button class="btn btn-secondary" type="button" onclick="goToStep(1)">← Back</button>
+                <button class="btn btn-primary" type="button" onclick="generateList()">Generate Shopping List →</button>
             </div>
         </section>
 
         <!-- STEP 3: SHOPPING LIST -->
-        <section class="step-section" id="step3">
+        <section class="step-section" id="step3" aria-labelledby="step3Title">
             <div class="section-header">
                 <div class="step-badge">STEP 3</div>
-                <h2>Your Shopping List</h2>
+                <h2 id="step3Title">Your Shopping List</h2>
                 <p>Tap items you already have at home</p>
             </div>
+            <div class="merge-note" id="mergeNote" hidden></div>
+
+            <div class="list-stats" id="listStats">
+                <div class="stat-tile"><span class="stat-tile-icon">🛒</span><strong id="lsItems">0</strong><span>to buy</span></div>
+                <div class="stat-tile"><span class="stat-tile-icon">🍽️</span><strong id="lsDishes">0</strong><span>dishes</span></div>
+                <div class="stat-tile"><span class="stat-tile-icon">👥</span><strong id="lsGuests">0</strong><span>guests</span></div>
+                <div class="stat-tile"><span class="stat-tile-icon">⚖️</span><strong id="lsWeight">0</strong><span>of groceries</span></div>
+            </div>
+
             <div class="shopping-list">
                 <div class="shopping-list-header">
                     <h3>🛒 Ingredients Needed</h3>
                     <div class="shopping-count" id="shoppingCount">0 items</div>
                 </div>
+                <div class="list-progress"><div class="list-progress-fill" id="listProgressFill"></div></div>
+                <div class="list-toolbar">
+                    <div class="list-filter">
+                        <span aria-hidden="true">🔎</span>
+                        <input type="search" id="listFilter" placeholder="Filter ingredients…" aria-label="Filter ingredients" autocomplete="off">
+                    </div>
+                    <button type="button" class="chip" id="hideHaveChip" aria-pressed="false">Hide ticked</button>
+                    <button type="button" class="chip" id="staplesChip">🧂 Pantry staples</button>
+                </div>
                 <div class="shopping-items" id="shoppingItems"></div>
+                <form class="add-item" id="addItemForm" autocomplete="off">
+                    <input type="text" id="addItemName" placeholder="Add your own item (e.g. napkins)" maxlength="40" aria-label="Item name" required>
+                    <input type="text" id="addItemQty" placeholder="Qty" maxlength="12" aria-label="Quantity">
+                    <button type="submit" class="btn btn-primary btn-sm">Add</button>
+                </form>
             </div>
             <div class="have-hint" id="haveHint">💡 Tap items you already have to remove them from the list</div>
+
+            <div class="export-row">
+                <button class="btn btn-secondary btn-sm" type="button" id="shareListBtn" onclick="shareList()">📋 Share / copy</button>
+                <button class="btn btn-secondary btn-sm" type="button" onclick="shareWhatsApp()">💬 WhatsApp</button>
+                <button class="btn btn-secondary btn-sm" type="button" onclick="downloadList()">⬇️ Download</button>
+                <button class="btn btn-secondary btn-sm btn-print" type="button" onclick="window.print()">🖨️ Print</button>
+            </div>
             <div class="btn-row">
-                <button class="btn btn-secondary" onclick="goToStep(2)">← Back</button>
-                <button class="btn btn-success" onclick="findStores()">Find Best Stores →</button>
+                <button class="btn btn-secondary" type="button" onclick="goToStep(2)">← Back</button>
+                <button class="btn btn-success" type="button" onclick="findStores()">Find Best Stores →</button>
             </div>
         </section>
 
         <!-- STEP 4: STORES (TYPED ADDRESS OR GPS) -->
-        <section class="step-section" id="step4">
+        <section class="step-section" id="step4" aria-labelledby="step4Title">
             <div class="section-header">
                 <div class="step-badge">STEP 4</div>
-                <h2>Where Should You Shop?</h2>
+                <h2 id="step4Title">Where Should You Shop?</h2>
                 <p id="storeSubtitle">Enter your location to find real supermarkets nearby</p>
             </div>
-            
-            <!-- Manual Location Search Box -->
+
             <div class="location-box" id="locationBox">
-                <div class="manual-location-label" style="margin-bottom: 0.5rem; font-size: 1rem;">📍 Type your city or address:</div>
+                <label class="manual-location-label" for="manualLocationInput">📍 Type your city or address:</label>
                 <div class="manual-location-row">
                     <input type="text" id="manualLocationInput" placeholder="e.g., Dhaka, Bangladesh or 123 Main St, New York" autocomplete="off" enterkeyhint="search">
-                    <button class="manual-location-btn" id="manualLocationBtn" onclick="searchManualLocation()">Find Stores</button>
+                    <button class="manual-location-btn" type="button" id="manualLocationBtn" onclick="searchManualLocation()">Find Stores</button>
                 </div>
                 <div class="location-or"><span>or</span></div>
                 <button type="button" class="gps-btn" id="gpsBtn" onclick="useMyLocation()">🎯 Use my current location</button>
-                <div class="manual-location-error" id="manualLocationError" style="display:none;"></div>
-                
-                <!-- Location Status Display (Shows after successful search) -->
-                <div id="locationStatusDisplay" style="display:none; margin-top: 1rem; padding: 1rem; background: var(--bg); border-radius: 12px;">
-                    <div style="font-weight: 700; color: var(--dark); margin-bottom: 0.25rem;" id="statusLabel">Location Found</div>
-                    <div style="color: var(--gray-2); font-size: 0.9rem;" id="statusAddress"></div>
+                <div class="manual-location-error" id="manualLocationError" role="alert" hidden></div>
+
+                <div class="location-status" id="locationStatusDisplay" hidden>
+                    <div class="location-status-label" id="statusLabel">Location Found</div>
+                    <div class="location-status-address" id="statusAddress"></div>
                 </div>
             </div>
 
+            <div class="store-filters" id="storeFilters" hidden></div>
             <div class="store-analysis" id="storeAnalysis"></div>
-            
+
             <div class="btn-row">
-                <button class="btn btn-secondary" onclick="goToStep(3)">← Back</button>
-                <button class="btn btn-primary" onclick="startShopping()" id="startShoppingBtn" style="display:none;">Start Shopping </button>
+                <button class="btn btn-secondary" type="button" onclick="goToStep(3)">← Back</button>
+                <button class="btn btn-primary" type="button" onclick="startShopping()" id="startShoppingBtn" hidden>Start Shopping <span aria-hidden="true">🛍️</span></button>
             </div>
         </section>
 
         <!-- STEP 5: CHECKLIST -->
-        <section class="step-section" id="step5">
+        <section class="step-section" id="step5" aria-labelledby="step5Title">
             <div class="section-header">
                 <div class="step-badge">STEP 5</div>
-                <h2>Shopping Checklist</h2>
+                <h2 id="step5Title">Shopping Checklist</h2>
                 <p>Tick off items as you put them in your basket</p>
             </div>
             <div class="checklist-section">
                 <div class="checklist-header">
-                    <h3>️ Your Basket</h3>
+                    <h3>🧺 Your Basket</h3>
                     <div class="checklist-progress-text" id="checklistProgressText">0 / 0</div>
                 </div>
                 <div class="checklist-progress-bar">
-                    <div class="checklist-progress-fill" id="checklistProgressFill" style="width:0%"></div>
+                    <div class="checklist-progress-fill" id="checklistProgressFill"></div>
                 </div>
                 <div class="checklist-items" id="checklistItems"></div>
             </div>
             <div class="btn-row">
-                <button class="btn btn-secondary" onclick="goToStep(4)">← Back</button>
-                <button class="btn btn-success" id="btnDone" disabled onclick="finishShopping()">I'm Done! ✓</button>
+                <button class="btn btn-secondary" type="button" onclick="goToStep(4)">← Back</button>
+                <button class="btn btn-success" type="button" id="btnDone" disabled onclick="finishShopping()">I'm Done! ✓</button>
             </div>
         </section>
 
         <!-- COMPLETION SCREEN -->
-        <section class="step-section" id="stepComplete" style="display: none;">
+        <section class="step-section" id="stepComplete" aria-labelledby="completeTitle">
             <div class="completion">
-            <div class="completion-emoji">🎉</div>
-                <h2>You're All Set!</h2>
+                <div class="completion-emoji-wrap">
+                    <span class="ring ring-1" aria-hidden="true"></span>
+                    <span class="ring ring-2" aria-hidden="true"></span>
+                    <div class="completion-emoji">🎉</div>
+                </div>
+                <h2 id="completeTitle">You're All Set!</h2>
                 <p>You have everything you need to cook an amazing meal. Time to head home and start cooking!</p>
                 <div class="completion-features">
-                    <div class="completion-feature">
+                    <div class="completion-feature tilt" data-tilt>
                         <div class="cf-emoji">✅</div>
                         <div class="cf-text">No forgotten ingredients</div>
                     </div>
-                    <div class="completion-feature">
+                    <div class="completion-feature tilt" data-tilt>
                         <div class="cf-emoji">💰</div>
                         <div class="cf-text">No unnecessary shopping</div>
                     </div>
-                    <div class="completion-feature">
+                    <div class="completion-feature tilt" data-tilt>
                         <div class="cf-emoji">🗺️</div>
                         <div class="cf-text">Real stores near you</div>
                     </div>
                 </div>
-                <div class="btn-row" style="margin-top:2rem">
-                    <button class="btn btn-primary" onclick="resetAll()">🔄 Plan Another Meal</button>
+                <div class="btn-row">
+                    <button class="btn btn-primary" type="button" onclick="resetAll()">🔄 Plan Another Meal</button>
                 </div>
             </div>
         </section>
 
-    </div>
+    </main>
 
     <!-- Footer -->
     <footer class="site-footer">
         <div class="footer-inner">
             <div class="footer-brand">
-                <img src="assets/logo.png" alt="" class="footer-logo">
+                <span class="brand-mark brand-mark-lg"><img src="assets/logo-64.png" alt="" width="48" height="48" loading="lazy"></span>
                 <div>
                     <div class="footer-name">ChefVoyage</div>
                     <div class="footer-tag">World cuisine, one merged shopping list.</div>
@@ -357,10 +552,11 @@
             </div>
             <div class="footer-credit">Developed by Hafsa Bynte Noor Ariba</div>
         </div>
-        <div class="footer-base">Dishes, ingredients &amp; store locations © OpenStreetMap contributors</div>
+        <div class="footer-base">Store locations © OpenStreetMap contributors</div>
     </footer>
 
-    <!-- THIS LINE IS CRITICAL: It connects your massive JS file -->
-    <script src="script.js?v=6"></script>
+    <script src="cuisines.js?v=12"></script>
+    <script src="recipes.js?v=2"></script>
+    <script src="script.js?v=13"></script>
 </body>
 </html>
